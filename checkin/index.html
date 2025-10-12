@@ -139,13 +139,15 @@
             const lineAuthUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_CHANNEL_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}&scope=profile%20openid&nonce=${nonce}`;
     
             // 顯示在 Console 用於除錯
+            console.log('========== LINE Login Debug ==========');
             console.log('LINE Channel ID:', LINE_CHANNEL_ID);
             console.log('Redirect URI:', REDIRECT_URI);
             console.log('完整登入網址:', lineAuthUrl);
+            console.log('======================================');
     
             // 跳轉到 LINE 登入
             window.location.href = lineAuthUrl;
-       };
+        };
 
         // 執行簽到
         window.doCheckin = async function() {
