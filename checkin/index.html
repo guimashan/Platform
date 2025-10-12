@@ -106,31 +106,31 @@
 
         // 載入巡邏點資訊
         async function loadPatrol() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const patrolParam = urlParams.get('patrol');
+    const urlParams = new URLSearchParams(window.location.search);
+    const patrolParam = urlParams.get('patrol');
 
-            if (!patrolParam) {
-                document.getElementById('patrolName').textContent = '巡邏點：未指定（請掃描 QR Code）';
-                return;
-            }
+    if (!patrolParam) {
+        document.getElementById('patrolName').textContent = '巡邏點：未指定（請掃描 QR Code）';
+        return;
+    }
 
-            try {
-                const patrolRef = doc(db, 'patrols', patrolParam);
-                const patrolDoc = await getDoc(patrolRef);
+    try {
+        const patrolRef = doc(db, 'patrols', patrolParam);
+        const patrolDoc = await getDoc(patrolRef);
 
-                if (patrolDoc.exists()) {
-                    currentPatrol = patrolDoc.data();
-                    currentPatrol.id = patrolParam;
-                    document.getElementById('patrolName').textContent = `巡邏點：${currentPatrol.name}`;
-                    document.getElementById('checkinBtn').disabled = false;
-                } else {
-                    document.getElementById('patrolName').textContent = '巡邏點：找不到此巡邏點';
-                }
-            } catch (err) {
-                console.error('載入巡邏點錯誤:', err);
-                document.getElementById('patrolName').textContent = '巡邏點：載入失敗';
-            }
+        if (patrolDoc.exists()) {
+            currentPatrol = patrolDoc.data();
+            currentPatrol.id = patrolParam;
+            document.getElementById('patrolName').textContent = `巡邏點：${currentPatrol.name}`;
+            document.getElementById('checkinBtn').disabled = false;
+        } else {
+            document.getElementById('patrolName').textContent = '巡邏點：找不到此巡邏點';
         }
+    } catch (err) {
+        console.error('載入巡邏點錯誤:', err);
+        document.getElementById('patrolName').textContent = '巡邏點：載入失敗';
+    }
+}
 
         // LINE 登入
         window.loginWithLine = function() {
