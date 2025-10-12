@@ -12,12 +12,12 @@ export default async function handler(req, res) {
       const event = events[0];
       const userId = event.source.userId;
       
-      // 重點：把 User ID 記錄到 console
+      // 記錄 User ID 到 console（可在 Vercel Logs 查看）
       console.log('=== LINE USER ID ===');
       console.log(userId);
       console.log('===================');
       
-      // 回傳訊息給使用者（顯示他的 User ID）
+      // 回傳訊息給使用者
       if (event.type === 'message') {
         await replyMessage(event.replyToken, userId);
       }
@@ -30,9 +30,9 @@ export default async function handler(req, res) {
   }
 }
 
-// 回覆訊息
+// 回覆訊息函數
 async function replyMessage(replyToken, userId) {
-  const LINE_CHANNEL_ACCESS_TOKEN = 'hJHXtSJaf4Kl2xcBIJwbUm3P3X+YiU345CYhdMVkCxe4L0r5QtiKbQOMK6UJowFSDQf0sAqh1H50OAK7pqTukADagJKz9EbT/yNlXwdR/XwDc+Et8MaUgYhNXlIQ8z3Lwzcw9h2WlPYPuJj6NFXZ5AdB04t89/1O/w1cDnyilFU='; // 稍後填入
+  const LINE_CHANNEL_ACCESS_TOKEN = 'ddMO/IzXSGjJOnYeoXiabvz94uITfQiF0qaiBRd3VUAY1f9d/ae+WGnNDdC6FnM2DQf0sAqh1H50OAK7pqTukADagJKz9EbT/yNlXwdR/Xxl72pUym9R7XiRPF5WidDi0foKTR5cUGZ/k92MVIt30AdB04t89/1O/w1cDnyilFU=';
   
   try {
     await fetch('https://api.line.me/v2/bot/message/reply', {
@@ -45,10 +45,12 @@ async function replyMessage(replyToken, userId) {
         replyToken: replyToken,
         messages: [{
           type: 'text',
-          text: `✅ 您的 LINE User ID:\n\n${userId}\n\n請將此 ID 提供給系統管理員`
+          text: `✅ 您的 LINE User ID:\n\n${userId}\n\n請將此 ID 提供給系統管理員，用於設定最高管理員權限。`
         }]
       })
     });
+    
+    console.log('已回覆 User ID 給使用者');
   } catch (error) {
     console.error('回覆訊息失敗:', error);
   }
