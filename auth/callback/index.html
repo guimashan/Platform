@@ -3,42 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINE 登入處理中...</title>
+    <title>登入處理中...</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Microsoft JhengHei', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
         }
 
-        .container {
+        .loading-container {
             background: white;
             border-radius: 20px;
-            padding: 40px 30px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
             text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
 
         .spinner {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+            border-top: 4px solid #2196F3;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -48,225 +40,193 @@
 
         h2 {
             color: #333;
-            margin: 20px 0;
+            margin-bottom: 10px;
         }
 
-        .user-id-display {
-            display: none;
-        }
-
-        .user-id-display.show {
-            display: block;
-            margin-top: 30px;
-        }
-
-        .user-id {
-            background: #333;
-            color: #00ff00;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            word-break: break-all;
-            margin: 20px 0;
-        }
-
-        .copy-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            margin: 10px;
-            transition: all 0.3s;
-        }
-
-        .copy-btn:hover {
-            background: #45a049;
+        p {
+            color: #666;
         }
 
         .error {
             color: #f44336;
             margin-top: 20px;
         }
-
-        .info {
-            background: #e3f2fd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            color: #1976d2;
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="loading">
-            <div class="spinner"></div>
-            <h2>正在處理 LINE 登入...</h2>
-            <p>請稍候</p>
-        </div>
-
-        <div id="userIdDisplay" class="user-id-display">
-            <h2>✅ 您的 LINE User ID</h2>
-            <p id="userName" style="color: #666; margin: 10px 0;"></p>
-            <div class="user-id" id="userId"></div>
-            <button class="copy-btn" onclick="copyUserId()">📋 複製 User ID</button>
-            <div class="info">
-                📌 <strong>請將此 ID 提供給開發人員</strong><br>
-                用於設定您為系統最高管理員<br><br>
-                <strong>ID 格式：</strong>U 開頭 + 32 位英數字
-            </div>
-        </div>
-
-        <div id="error" style="display: none;">
-            <h2>❌ 發生錯誤</h2>
-            <p class="error" id="errorMsg"></p>
-            <button class="copy-btn" onclick="location.href='/test-userid.html'">
-                重新嘗試
-            </button>
-        </div>
+    <div class="loading-container">
+        <div class="spinner"></div>
+        <h2>🔐 登入處理中...</h2>
+        <p id="status">正在驗證您的 LINE 帳號</p>
+        <p class="error" id="error" style="display:none;"></p>
     </div>
 
-    <script>
-        const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        const LINE_LOGIN_CHANNEL_SECRET = '025a71c97099343e6e688bb6e393a125';
-        const CALLBACK_URL = 'https://guimashen.vercel.app/auth/callback';
+    <script type="module">
+        // Firebase Configuration (checkin 專案)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // 頁面載入時處理
-        window.addEventListener('DOMContentLoaded', async function() {
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
+            authDomain: "checkin-29f7f.firebaseapp.com",
+            projectId: "checkin-29f7f",
+            storageBucket: "checkin-29f7f.firebasestorage.app",
+            messagingSenderId: "698452461679",
+            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // LINE Login 設定
+        const LINE_CHANNEL_ID = '2008269293';
+        const LINE_CHANNEL_SECRET = '025a71c97099343e6e688bb6e393a125';
+
+        // 最高管理員 LINE User ID
+        const SUPERADMIN_LINE_ID = 'U9f0bc35b722b4503eeb7cc0466dfbbc3';
+
+        // 處理 LINE Login 回調
+        async function handleCallback() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
 
-            // 如果有錯誤
+            // 檢查是否有錯誤
             if (error) {
-                showError('LINE 登入失敗：使用者取消或發生錯誤');
-                return;
-            }
-
-            // 如果沒有 code
-            if (!code) {
-                showError('沒有收到授權碼，請重新登入');
-                return;
-            }
-
-            // 檢查是否為測試模式
-            if (state === 'test_userid') {
-                // 測試模式：顯示 User ID
-                await getUserId(code);
-            } else {
-                // 正常模式：儲存 code 並導向對應頁面
-                localStorage.setItem('lineAuthCode', code);
-                localStorage.setItem('lineAuthState', state || 'checkin');
-                
-                // 根據 state 導向不同頁面
-                if (state === 'schedule') {
-                    window.location.href = '/schedule/';
-                } else if (state === 'service') {
-                    window.location.href = '/service/';
-                } else {
+                showError('登入失敗：' + error);
+                setTimeout(() => {
                     window.location.href = '/checkin/';
-                }
+                }, 3000);
+                return;
             }
-        });
 
-        async function getUserId(code) {
+            // 檢查是否有 code
+            if (!code) {
+                showError('未收到授權碼，請重新登入');
+                setTimeout(() => {
+                    window.location.href = '/checkin/';
+                }, 3000);
+                return;
+            }
+
             try {
-                // 取得 Access Token
+                updateStatus('正在取得 LINE 資訊...');
+
+                // 使用 code 換取 access token
                 const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
+                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: new URLSearchParams({
                         grant_type: 'authorization_code',
                         code: code,
-                        redirect_uri: CALLBACK_URL,
-                        client_id: LINE_LOGIN_CHANNEL_ID,
-                        client_secret: LINE_LOGIN_CHANNEL_SECRET
+                        redirect_uri: window.location.origin + '/auth/callback/',
+                        client_id: LINE_CHANNEL_ID,
+                        client_secret: LINE_CHANNEL_SECRET
                     })
                 });
 
                 const tokenData = await tokenResponse.json();
 
-                if (!tokenData.access_token) {
-                    throw new Error('無法取得 Access Token: ' + JSON.stringify(tokenData));
+                if (tokenData.error) {
+                    throw new Error(tokenData.error_description || tokenData.error);
                 }
 
-                // 取得使用者資料
+                const accessToken = tokenData.access_token;
+
+                updateStatus('正在取得使用者資料...');
+
+                // 取得使用者資訊
                 const profileResponse = await fetch('https://api.line.me/v2/profile', {
                     headers: {
-                        'Authorization': `Bearer ${tokenData.access_token}`
+                        'Authorization': `Bearer ${accessToken}`
                     }
                 });
 
                 const profile = await profileResponse.json();
 
                 if (!profile.userId) {
-                    throw new Error('無法取得使用者資料: ' + JSON.stringify(profile));
+                    throw new Error('無法取得使用者資訊');
                 }
 
-                // 顯示 User ID
-                showUserId(profile.userId, profile.displayName);
+                updateStatus('正在儲存使用者資料...');
+
+                // 檢查使用者是否已存在
+                const userRef = doc(db, 'users', profile.userId);
+                const userDoc = await getDoc(userRef);
+
+                let userData = {
+                    lineUserId: profile.userId,
+                    displayName: profile.displayName || '未知使用者',
+                    pictureUrl: profile.pictureUrl || '',
+                    lastLogin: serverTimestamp()
+                };
+
+                // 如果是 superadmin
+                if (profile.userId === SUPERADMIN_LINE_ID) {
+                    userData.role = 'superadmin';
+                    userData.status = 'active';
+                    if (!userDoc.exists()) {
+                        userData.createdAt = serverTimestamp();
+                    }
+                } else if (!userDoc.exists()) {
+                    // 新使用者，預設為 user
+                    userData.role = 'user';
+                    userData.status = 'active';
+                    userData.createdAt = serverTimestamp();
+                } else {
+                    // 已存在的使用者，保留原有角色
+                    const existingData = userDoc.data();
+                    userData.role = existingData.role || 'user';
+                    userData.status = existingData.status || 'active';
+                }
+
+                // 儲存到 Firestore
+                await setDoc(userRef, userData, { merge: true });
+
+                // 儲存到 localStorage
+                localStorage.setItem('lineProfile', JSON.stringify(profile));
+                localStorage.setItem('lineAccessToken', accessToken);
+                localStorage.setItem('userRole', userData.role);
+
+                updateStatus('登入成功！正在導向...');
+
+                // 根據 state 決定導向位置
+                let redirectUrl = '/checkin/';
+                if (state) {
+                    if (state === 'checkin') redirectUrl = '/checkin/';
+                    else if (state === 'manage') redirectUrl = '/checkin/manage/';
+                    else if (state === 'schedule') redirectUrl = '/schedule/';
+                    else if (state === 'service') redirectUrl = '/service/';
+                }
+
+                setTimeout(() => {
+                    window.location.href = redirectUrl;
+                }, 1000);
 
             } catch (err) {
-                showError('處理登入時發生錯誤：' + err.message);
+                console.error('處理登入時發生錯誤:', err);
+                showError('登入處理失敗：' + err.message);
+                setTimeout(() => {
+                    window.location.href = '/checkin/';
+                }, 3000);
             }
         }
 
-        function showUserId(userId, displayName) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('userIdDisplay').classList.add('show');
-            document.getElementById('userId').textContent = userId;
-            
-            if (displayName) {
-                document.getElementById('userName').textContent = `歡迎，${displayName}！`;
-            }
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
         }
 
         function showError(message) {
-            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = message;
             document.getElementById('error').style.display = 'block';
-            document.getElementById('errorMsg').textContent = message;
+            document.querySelector('.spinner').style.display = 'none';
         }
 
-        function copyUserId() {
-            const userId = document.getElementById('userId').textContent;
-            
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(userId).then(() => {
-                    alert('✅ User ID 已複製到剪貼簿！\n\n' + userId);
-                }).catch(() => {
-                    fallbackCopy(userId);
-                });
-            } else {
-                fallbackCopy(userId);
-            }
-        }
-
-        function fallbackCopy(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
-            
-            try {
-                document.execCommand('copy');
-                alert('✅ User ID 已複製到剪貼簿！\n\n' + text);
-            } catch (err) {
-                alert('❌ 複製失敗，請手動複製：\n\n' + text);
-            }
-            
-            document.body.removeChild(textarea);
-        }
+        // 執行回調處理
+        handleCallback();
     </script>
 </body>
 </html>
