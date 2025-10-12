@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>龜馬山 紫皇天乙真慶宮 - 整合服務平台</title>
     <style>
+        /* 全域樣式 */
         * {
             margin: 0;
             padding: 0;
@@ -21,46 +22,56 @@
             padding: 20px;
         }
 
+        /* 主容器 */
         .container {
             background: white;
             border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             padding: 40px 30px;
             max-width: 500px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             text-align: center;
         }
 
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 10px;
+        /* 標題區 */
+        .header {
+            margin-bottom: 30px;
         }
 
-        h1 {
+        .header h1 {
             color: #c23636;
             font-size: 1.8rem;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
-        h2 {
+        .header h2 {
             color: #666;
             font-size: 1.2rem;
-            margin-bottom: 30px;
             font-weight: normal;
         }
 
+        /* 按鈕區 */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
         .btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin: 15px 0;
+            padding: 18px 25px;
+            border: none;
+            border-radius: 12px;
             font-size: 1.1rem;
             font-weight: bold;
-            border: none;
-            border-radius: 10px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             text-decoration: none;
+            display: block;
             color: white;
         }
 
@@ -71,7 +82,7 @@
         .btn-primary:hover {
             background: #45a049;
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
         }
 
         .btn-secondary {
@@ -79,46 +90,66 @@
         }
 
         .btn-secondary:hover {
-            background: #1976D2;
+            background: #0b7dda;
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(33, 150, 243, 0.4);
+            box-shadow: 0 10px 20px rgba(33, 150, 243, 0.3);
         }
 
+        /* 資訊區 */
         .info {
-            margin-top: 30px;
-            padding: 20px;
             background: #f9f9f9;
+            padding: 20px;
             border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .info p {
             color: #666;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             line-height: 1.6;
+            margin-bottom: 10px;
         }
 
-        .info strong {
-            color: #333;
+        .info p:last-child {
+            margin-bottom: 0;
         }
 
+        /* 響應式設計 */
         @media (max-width: 480px) {
-            h1 { font-size: 1.5rem; }
-            h2 { font-size: 1rem; }
-            .btn { font-size: 1rem; padding: 12px; }
+            .container {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header h2 {
+                font-size: 1rem;
+            }
+
+            .btn {
+                padding: 15px 20px;
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">🏯</div>
-        <h1>龜馬山 紫皇天乙真慶宮</h1>
-        <h2>整合服務平台</h2>
-        
-        <a href="/checkin/" class="btn btn-primary">📍 奉香簽到</a>
-        <a href="/checkin/manage/" class="btn btn-secondary">📊 管理後台</a>
-        
+        <div class="header">
+            <h1>📍 龜馬山 紫皇天乙真慶宮</h1>
+            <h2>整合服務平台</h2>
+        </div>
+
+        <div class="button-group">
+            <a href="/checkin/" class="btn btn-primary">奉香簽到</a>
+            <a href="/checkin/manage/" class="btn btn-secondary">管理後台</a>
+        </div>
+
         <div class="info">
-            <strong>📱 使用說明</strong><br>
-            本服務需透過 LINE 官方帳號進行操作<br>
-            如有疑問，請洽管理人員<br><br>
-            <strong>🔐 系統狀態：</strong>正常運作中
+            <p>📱 本服務需透過 LINE 官方帳號進行操作</p>
+            <p>❓ 如有疑問，請洽管理人員</p>
         </div>
     </div>
 </body>
