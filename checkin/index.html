@@ -867,33 +867,60 @@
             }
         };
 
-        // ========== 取得目前位置 ==========
-        function getCurrentPosition() {
-            return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    reject(new Error('此裝置不支援定位功能'));
-                    return;
-                }
-
-                addLog('🌐 呼叫 navigator.geolocation.getCurrentPosition', 'info');
-
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        addLog('✅ 定位成功', 'success');
-                        resolve(position);
+   // ========== 取得目前位置 ==========
+function getCurrentPosition() {
+    return new Promise((resolve, reject) => {
+        // 測試模式：使用模擬座標
+        if (CONFIG.TEST_MODE) {
+            addLog('⚙️ 測試模式：使用模擬座標', 'warning');
+            
+            // 模擬 GPS 定位成功，使用萬應公的座標
+            setTimeout(() => {
+                const mockPosition = {
+                    coords: {
+                        latitude: 25.147924,   // 萬應公的緯度
+                        longitude: 121.410296, // 萬應公的經度
+                        accuracy: 10
                     },
-                    (error) => {
-                        addLog(`❌ 定位錯誤: code=${error.code}, message=${error.message}`, 'error');
-                        reject(error);
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
-            });
+                    timestamp: Date.now()
+                };
+                addLog('✅ 模擬定位成功', 'success');
+                resolve(mockPosition);
+            }, 500); // 模擬 0.5 秒的定位時間
+            
+            return;
         }
+
+        // 正式模式：使用真實 GPS
+        if (!navigator.geolocation) {
+            reject(new Error('此裝置不支援定位功能'));
+            return;
+        }
+
+        addLog('🌐 呼叫 navigator.geolocation.getCurrentPosition', 'info');
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                addLog('✅ 定位成功', 'success');
+                resolve(position);
+            },
+            (error) => {
+                addLog(`❌ 定位錯誤: code=${error.code}, message=${error.message}`, 'error');
+                reject(error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    });
+}     
+
+
+
+
+        
 
         // ========== 計算距離 ==========
         function calculateDistance(lat1, lon1, lat2, lon2) {
