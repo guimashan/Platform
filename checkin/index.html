@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>奉香簽到 - 龜馬山 紫皇天乙真慶宮</title>
+    <style>
+        /* ========== 全域樣式 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* ========== LINE 瀏覽器完全阻擋畫面 ========== */
+        .line-block-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            z-index: 99999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
+
+        .line-block-screen.show {
+            display: flex;
+        }
+
+        .line-block-content {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+
+        .line-block-content .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .line-block-content h2 {
+            color: #d32f2f;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .line-block-content .steps {
+            text-align: left;
+            margin: 20px 0;
+            padding: 20px;
+            background: #fff3e0;
+            border-radius: 10px;
+        }
+
+        .line-block-content .steps p {
+            margin: 12px 0;
+            line-height: 1.8;
+            color: #555;
+            font-size: 1rem;
+        }
+
+        .line-block-content .steps strong {
+            color: #ff6b00;
+        }
+
+        /* ========== 主容器 ========== */
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        /* ========== 標題 ========== */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #c23636;
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        /* ========== 執行日誌 ========== */
+        .debug-log {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            display: none;
+        }
+
+        .debug-log.show {
+            display: block;
+        }
+
+        .debug-log .log-entry {
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .debug-log .log-success {
+            color: #4CAF50;
+        }
+
+        .debug-log .log-error {
+            color: #f44336;
+        }
+
+        .debug-log .log-warning {
+            color: #ff9800;
+        }
+
+        .debug-log .log-info {
+            color: #2196F3;
+        }
+
+        /* ========== 測試模式標記 ========== */
+        .test-mode-badge {
+            background: #ff9800;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .test-mode-badge.show {
+            display: block;
+        }
+
+        /* ========== 使用者資訊 ========== */
+        .user-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #ddd;
+        }
+
+        .user-details h3 {
+            color: #333;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .user-details p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* ========== 巡邏點資訊 ========== */
+        .patrol-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .patrol-info h3 {
+            color: #1976d2;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .patrol-info p {
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        /* ========== 按鈕 ========== */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 0;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-line {
+            background: #00C300;
+            color: white;
+        }
+
+        .btn-line:hover {
+            background: #00B000;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 195, 0, 0.4);
+        }
+
+        .btn-secondary {
+            background: #757575;
+            color: white;
+            font-size: 0.9rem;
+            padding: 10px;
+        }
+
+        /* ========== 結果區塊 ========== */
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .result.success {
+            background: #e8f5e9;
+            border: 2px solid #4CAF50;
+        }
+
+        .result.error {
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+
+        .result h2 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .result.success h2 {
+            color: #4CAF50;
+        }
+
+        .result.error h2 {
+            color: #f44336;
+        }
+
+        .result-details {
+            text-align: left;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .result-details p {
+            margin: 8px 0;
+            color: #555;
+            word-wrap: break-word;
+        }
+
+        /* ========== 提示訊息 ========== */
+        .hint {
+            background: #fff3cd;
+            border-left: 4px solid #ff9800;
+            padding: 12px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .hint p {
+            color: #856404;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        /* ========== 響應式 ========== */
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .logo {
+                font-size: 2.5rem;
+            }
+
+            .line-block-content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LINE 瀏覽器完全阻擋畫面 -->
+    <div id="line-block-screen" class="line-block-screen">
+        <div class="line-block-content">
+            <div class="icon">🚫</div>
+            <h2>無法在 LINE 中使用</h2>
+            <div class="steps">
+                <p><strong>請按照以下步驟操作：</strong></p>
+                <p>1️⃣ 點擊右上角的 <strong>「⋯」</strong>（三個點）</p>
+                <p>2️⃣ 選擇 <strong>「在瀏覽器中開啟」</strong></p>
+                <p>3️⃣ 使用 <strong>Chrome</strong> 或 <strong>Safari</strong> 開啟</p>
+                <p>4️⃣ 即可正常使用簽到功能</p>
+            </div>
+            <p style="color: #999; font-size: 0.85rem; margin-top: 15px;">
+                LINE 內建瀏覽器不支援此功能
+            </p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 測試模式標記 -->
+        <div id="test-mode-badge" class="test-mode-badge"></div>
+
+        <!-- 標題 -->
+        <div class="header">
+            <div class="logo">📍</div>
+            <h1>奉香簽到</h1>
+        </div>
+
+        <!-- 執行日誌 -->
+        <div id="debug-log" class="debug-log"></div>
+
+        <!-- 使用者資訊（登入後顯示） -->
+        <div id="user-info" style="display: none;"></div>
+
+        <!-- 巡邏點資訊 -->
+        <div id="patrol-info" class="patrol-info">
+            <h3>巡邏點：</h3>
+            <p id="patrol-name">載入中...</p>
+        </div>
+
+        <!-- 主要按鈕 -->
+        <div id="main-button"></div>
+
+        <!-- 結果顯示 -->
+        <div id="result"></div>
+
+        <!-- 控制按鈕 -->
+        <div id="control-buttons"></div>
+
+        <!-- 提示訊息 -->
+        <div class="hint">
+            <p>💡 建議使用 Chrome 或 Safari 瀏覽器以獲得最佳體驗</p>
+        </div>
+    </div>
+
+    <!-- 載入共用設定 -->
+    <script src="/config/superadmin.js"></script>
+
+    <script type="module">
+        // ═══════════════════════════════════════════════════════════════
+        // 奉香簽到核心功能（終極改良版）
+        // ═══════════════════════════════════════════════════════════════
+
+        // ========== 設定區 ==========
+        const CONFIG = {
+            TEST_MODE: false,  // 測試模式：true = 不驗證 GPS，false = 正常驗證
+            SHOW_DEBUG_LOG: true,  // 顯示除錯日誌
+            BLOCK_LINE_APP: true  // 阻擋 LINE 內建瀏覽器
+        };
+
+        // Firebase 設定
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
+            authDomain: "checkin-29f7f.firebaseapp.com",
+            projectId: "checkin-29f7f",
+            storageBucket: "checkin-29f7f.firebasestorage.app",
+            messagingSenderId: "698452461679",
+            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
+        };
+
+        let app, db;
+
+        // LINE Login 設定
+        const LINE_LOGIN_CHANNEL_ID = '2008269293';
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+
+        // 全域變數
+        let currentUser = null;
+        let currentPatrol = null;
+        let userRole = 'user';
+
+        // ========== 日誌系統 ==========
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('zh-TW');
+            const logDiv = document.getElementById('debug-log');
+            
+            if (CONFIG.SHOW_DEBUG_LOG) {
+                logDiv.classList.add('show');
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.textContent = `[${timestamp}] ${message}`;
+                logDiv.appendChild(entry);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+
+            // 同時輸出到 console
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // ========== 偵測 LINE 內建瀏覽器 ==========
+        function detectAndBlockLineApp() {
+            const ua = navigator.userAgent;
+            const isLineApp = /Line/i.test(ua);
+            
+            addLog(`User Agent: ${ua.substring(0, 80)}...`, 'info');
+            addLog(`LINE 瀏覽器: ${isLineApp ? '是 ⚠️' : '否 ✓'}`, isLineApp ? 'warning' : 'success');
+
+            if (isLineApp && CONFIG.BLOCK_LINE_APP) {
+                addLog('阻擋 LINE 內建瀏覽器執行', 'error');
+                document.getElementById('line-block-screen').classList.add('show');
+                return true;
+            }
+
+            return false;
+        }
+
+        // ========== 初始化 Firebase ==========
+        async function initFirebase() {
+            try {
+                addLog('初始化 Firebase...', 'info');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                addLog('✅ Firebase 初始化成功', 'success');
+                return true;
+            } catch (error) {
+                addLog(`❌ Firebase 初始化失敗: ${error.message}`, 'error');
+                showResult('error', '❌ 系統初始化失敗', 
+                    `Firebase 連線失敗\n\n` +
+                    `錯誤訊息：${error.message}\n\n` +
+                    `請確認：\n` +
+                    `1. 網路連線正常\n` +
+                    `2. Firebase 設定正確\n` +
+                    `3. 重新整理頁面再試`
+                );
+                return false;
+            }
+        }
+
+        // ========== 初始化 ==========
+        async function init() {
+            try {
+                addLog('========== 開始初始化 ==========', 'info');
+
+                // 顯示測試模式
+                if (CONFIG.TEST_MODE) {
+                    const badge = document.getElementById('test-mode-badge');
+                    badge.textContent = '⚙️ 測試模式：GPS 驗證已關閉';
+                    badge.classList.add('show');
+                    addLog('⚙️ 測試模式啟用', 'warning');
+                }
+
+                // 偵測並阻擋 LINE 瀏覽器
+                if (detectAndBlockLineApp()) {
+                    addLog('已阻擋執行', 'error');
+                    return;
+                }
+
+                // 初始化 Firebase
+                const firebaseOk = await initFirebase();
+                if (!firebaseOk) {
+                    return;
+                }
+
+                // 取得網址參數
+                const urlParams = new URLSearchParams(window.location.search);
+                const patrolName = urlParams.get('patrol');
+                addLog(`網址參數 patrol: ${patrolName || '未指定'}`, patrolName ? 'info' : 'warning');
+
+                if (patrolName) {
+                    // 讀取巡邏點資料
+                    document.getElementById('patrol-name').textContent = `${patrolName}（載入中...）`;
+                    addLog(`讀取巡邏點: ${patrolName}`, 'info');
+                    
+                    currentPatrol = await loadPatrolFromFirebase(patrolName);
+                    
+                    if (currentPatrol) {
+                        document.getElementById('patrol-name').textContent = currentPatrol.name;
+                        addLog(`✅ 巡邏點載入成功: ${JSON.stringify(currentPatrol)}`, 'success');
+                    } else {
+                        document.getElementById('patrol-name').textContent = `❌ 找不到：${patrolName}`;
+                        addLog(`❌ 巡邏點不存在: ${patrolName}`, 'error');
+                        showResult('error', '❌ 巡邏點不存在', 
+                            `找不到巡邏點：${patrolName}\n\n` +
+                            `請確認：\n` +
+                            `1. QR Code 是否正確\n` +
+                            `2. Firebase 是否有此巡邏點\n` +
+                            `3. 名稱是否完全一致`
+                        );
+                    }
+                } else {
+                    document.getElementById('patrol-name').textContent = '未指定巡邏點';
+                    addLog('⚠️ 未指定巡邏點', 'warning');
+                }
+
+                // 檢查登入狀態
+                const lineUserId = localStorage.getItem('line_user_id');
+                const displayName = localStorage.getItem('line_display_name');
+                const pictureUrl = localStorage.getItem('line_picture_url');
+
+                addLog(`檢查登入狀態: ${lineUserId ? `已登入 (${displayName})` : '未登入'}`, 
+                       lineUserId ? 'success' : 'info');
+
+                if (lineUserId) {
+                    // 已登入
+                    currentUser = {
+                        userId: lineUserId,
+                        displayName: displayName,
+                        pictureUrl: pictureUrl
+                    };
+
+                    // 取得使用者角色
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', lineUserId));
+                        if (userDoc.exists()) {
+                            userRole = userDoc.data().role || 'user';
+                            addLog(`使用者角色: ${userRole}`, 'info');
+                        }
+                    } catch (roleError) {
+                        addLog(`⚠️ 取得角色失敗: ${roleError.message}`, 'warning');
+                    }
+
+                    showUserInfo();
+                    showCheckinButton();
+                } else {
+                    // 未登入
+                    showLoginButton();
+                }
+
+                // 顯示控制按鈕
+                showControlButtons();
+
+                addLog('========== 初始化完成 ==========', 'success');
+
+            } catch (error) {
+                addLog(`❌ 初始化失敗: ${error.message}`, 'error');
+                addLog(`錯誤堆疊: ${error.stack}`, 'error');
+                
+                showResult('error', '❌ 系統初始化失敗', 
+                    `發生未預期的錯誤\n\n` +
+                    `錯誤訊息：${error.message}\n` +
+                    `錯誤類型：${error.name}\n\n` +
+                    `請嘗試：\n` +
+                    `1. 重新整理頁面\n` +
+                    `2. 使用 Chrome 或 Safari\n` +
+                    `3. 檢查網路連線\n` +
+                    `4. 清除瀏覽器快取`
+                );
+            }
+        }
+
+        // ========== 從 Firebase 讀取巡邏點 ==========
+        async function loadPatrolFromFirebase(patrolName) {
+            try {
+                addLog(`Firebase 查詢: patrols/${patrolName}`, 'info');
+                const patrolDoc = await getDoc(doc(db, 'patrols', patrolName));
+                
+                if (patrolDoc.exists()) {
+                    const data = patrolDoc.data();
+                    addLog(`✅ 讀取成功: ${JSON.stringify(data)}`, 'success');
+                    return {
+                        name: data.name,
+                        lat: data.lat,
+                        lng: data.lng,
+                        tolerance: data.tolerance || 50
+                    };
+                } else {
+                    addLog(`❌ 文件不存在: patrols/${patrolName}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                addLog(`❌ 讀取失敗: ${error.message}`, 'error');
+                showResult('error', '❌ 讀取巡邏點失敗', 
+                    `無法從資料庫讀取巡邏點\n\n` +
+                    `錯誤訊息：${error.message}\n\n` +
+                    `可能原因：\n` +
+                    `1. Firebase 連線失敗\n` +
+                    `2. 網路不穩定\n` +
+                    `3. Security Rules 設定錯誤`
+                );
+                return null;
+            }
+        }
+
+        // ========== 顯示使用者資訊 ==========
+        function showUserInfo() {
+            const userInfoDiv = document.getElementById('user-info');
+            userInfoDiv.style.display = 'flex';
+            userInfoDiv.className = 'user-info';
+            userInfoDiv.innerHTML = `
+                <img src="${currentUser.pictureUrl || ''}" 
+                     alt="使用者頭像" 
+                     class="user-avatar"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22%23999%22%3E👤%3C/text%3E%3C/svg%3E'">
+                <div class="user-details">
+                    <h3>${currentUser.displayName}</h3>
+                    <p>角色：${getRoleDisplayName(userRole)}</p>
+                </div>
+            `;
+        }
+
+        // ========== 取得角色顯示名稱 ==========
+        function getRoleDisplayName(role) {
+            const roleNames = {
+                'superadmin': '最高系統管理員',
+                'admin': '系統管理員',
+                'poweruser': '管理者',
+                'user': '工作同仁'
+            };
+            return roleNames[role] || '工作同仁';
+        }
+
+        // ========== 顯示登入按鈕 ==========
+        function showLoginButton() {
+            const buttonDiv = document.getElementById('main-button');
+            buttonDiv.innerHTML = `
+                <button class="btn btn-line" onclick="handleLineLogin()">
+                    使用 LINE 帳號登入
+                </button>
+            `;
+        }
+
+        // ========== 顯示簽到按鈕 ==========
+        function showCheckinButton() {
+            const buttonDiv = document.getElementById('main-button');
+            const isDisabled = !currentPatrol;
+            
+            buttonDiv.innerHTML = `
+                <button class="btn btn-primary" 
+                        onclick="handleCheckin()" 
+                        id="checkin-btn"
+                        ${isDisabled ? 'disabled' : ''}>
+                    ${isDisabled ? '請掃描巡邏點 QR Code' : '取得定位並簽到'}
+                </button>
+            `;
+        }
+
+        // ========== 顯示控制按鈕 ==========
+        function showControlButtons() {
+            const controlDiv = document.getElementById('control-buttons');
+            controlDiv.innerHTML = `
+                <button class="btn btn-secondary" onclick="toggleDebugLog()">
+                    ${CONFIG.SHOW_DEBUG_LOG ? '隱藏' : '顯示'}執行日誌
+                </button>
+            `;
+        }
+
+        // ========== 切換日誌顯示 ==========
+        window.toggleDebugLog = function() {
+            CONFIG.SHOW_DEBUG_LOG = !CONFIG.SHOW_DEBUG_LOG;
+            const logDiv = document.getElementById('debug-log');
+            
+            if (CONFIG.SHOW_DEBUG_LOG) {
+                logDiv.classList.add('show');
+            } else {
+                logDiv.classList.remove('show');
+            }
+            
+            showControlButtons();
+        };
+
+        // ========== 處理 LINE 登入 ==========
+        window.handleLineLogin = function() {
+            try {
+                addLog('========== 開始 LINE 登入流程 ==========', 'info');
+                addLog(`Channel ID: ${LINE_LOGIN_CHANNEL_ID}`, 'info');
+                addLog(`Redirect URI: ${REDIRECT_URI}`, 'info');
+                
+                const state = encodeURIComponent(JSON.stringify({
+                    redirect: window.location.href
+                }));
+
+                const authUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
+                    `response_type=code` +
+                    `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
+                    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+                    `&state=${state}` +
+                    `&scope=profile%20openid`;
+
+                addLog(`授權網址: ${authUrl.substring(0, 100)}...`, 'info');
+                addLog('🔗 導向 LINE 授權頁面...', 'info');
+                
+                setTimeout(() => {
+                    window.location.href = authUrl;
+                }, 500);
+                
+            } catch (error) {
+                addLog(`❌ LINE 登入失敗: ${error.message}`, 'error');
+                addLog(`錯誤堆疊: ${error.stack}`, 'error');
+                
+                showResult('error', '❌ 登入失敗', 
+                    `無法啟動 LINE 登入\n\n` +
+                    `錯誤訊息：${error.message}\n` +
+                    `錯誤類型：${error.name}\n\n` +
+                    `請嘗試：\n` +
+                    `1. 確認已安裝 LINE App\n` +
+                    `2. 使用 Chrome 或 Safari\n` +
+                    `3. 重新整理頁面後再試\n` +
+                    `4. 檢查網路連線`
+                );
+            }
+        };
+
+        // ========== 處理簽到 ==========
+        window.handleCheckin = async function() {
+            if (!currentPatrol) {
+                showResult('error', '❌ 未指定巡邏點', '請掃描正確的巡邏點 QR Code');
+                return;
+            }
+
+            const btn = document.getElementById('checkin-btn');
+            btn.disabled = true;
+            btn.textContent = '定位中...';
+
+            try {
+                addLog('========== 開始簽到流程 ==========', 'info');
+                addLog(`巡邏點: ${currentPatrol.name}`, 'info');
+                addLog(`測試模式: ${CONFIG.TEST_MODE ? '是' : '否'}`, CONFIG.TEST_MODE ? 'warning' : 'info');
+                
+                // 取得 GPS 位置
+                addLog('📍 正在取得 GPS 位置...', 'info');
+                const position = await getCurrentPosition();
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+
+                addLog(`✅ 定位成功`, 'success');
+                addLog(`使用者位置: ${userLat.toFixed(6)}, ${userLng.toFixed(6)}`, 'info');
+                addLog(`巡邏點位置: ${currentPatrol.lat}, ${currentPatrol.lng}`, 'info');
+
+                // 計算距離
+                const distance = calculateDistance(
+                    userLat, userLng,
+                    currentPatrol.lat, currentPatrol.lng
+                );
+
+                addLog(`📏 距離: ${distance.toFixed(1)} 公尺`, 'info');
+                addLog(`容許誤差: ${currentPatrol.tolerance} 公尺`, 'info');
+
+                // 檢查是否需要 GPS 驗證
+                const requiresGPS = !CONFIG.TEST_MODE && (userRole === 'user');
+                addLog(`GPS 驗證: ${requiresGPS ? '需要' : '不需要'}`, 'info');
+
+                // 驗證距離
+                if (requiresGPS && distance > currentPatrol.tolerance) {
+                    addLog(`❌ 距離驗證失敗: ${distance.toFixed(1)} > ${currentPatrol.tolerance}`, 'error');
+                    showResult(
+                        'error',
+                        '❌ 位置不符',
+                        `您的位置不在巡邏點範圍內\n\n` +
+                        `您的座標：${userLat.toFixed(6)}, ${userLng.toFixed(6)}\n` +
+                        `巡邏點座標：${currentPatrol.lat}, ${currentPatrol.lng}\n` +
+                        `實際距離：${distance.toFixed(1)} 公尺\n` +
+                        `容許誤差：±${currentPatrol.tolerance} 公尺\n\n` +
+                        `請移動到正確位置後重試`
+                    );
+                    btn.disabled = false;
+                    btn.textContent = '重新定位並簽到';
+                    return;
+                }
+
+                addLog('✅ 距離驗證通過', 'success');
+
+                // 儲存簽到記錄
+                addLog('💾 正在儲存簽到記錄...', 'info');
+                await saveCheckin(userLat, userLng, distance, requiresGPS);
+                addLog('✅ 簽到記錄已儲存', 'success');
+
+                // 顯示成功訊息
+                const now = new Date();
+                showResult(
+                    'success',
+                    '✅ 奉香成功！',
+                    `地點：${currentPatrol.name}\n` +
+                    `時間：${now.toLocaleString('zh-TW')}\n` +
+                    `座標：${userLat.toFixed(6)}, ${userLng.toFixed(6)}\n` +
+                    (requiresGPS ? `距離：${distance.toFixed(1)} 公尺\n` : `（管理者免驗證）\n`) +
+                    `\n記錄已上傳至系統`
+                );
+
+                btn.style.display = 'none';
+                addLog('========== 簽到完成 ==========', 'success');
+
+            } catch (error) {
+                addLog(`❌ 簽到失敗: ${error.message}`, 'error');
+                addLog(`錯誤堆疊: ${error.stack}`, 'error');
+                
+                let errorMessage = '未知錯誤';
+                let errorCode = error.code || 'UNKNOWN';
+
+                if (error.code === 1) {
+                    errorMessage = '使用者拒絕定位權限';
+                } else if (error.code === 2) {
+                    errorMessage = '無法取得位置資訊（GPS 訊號不佳）';
+                } else if (error.code === 3) {
+                    errorMessage = '定位逾時（請確認 GPS 已開啟）';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+
+                showResult(
+                    'error',
+                    '❌ 定位失敗',
+                    `${errorMessage}\n` +
+                    `錯誤碼：${errorCode}\n\n` +
+                    `請嘗試：\n` +
+                    `1. 確認手機定位已開啟\n` +
+                    `2. 允許瀏覽器存取位置\n` +
+                    `3. 移動到開闊空間\n` +
+                    `4. 使用 Chrome 或 Safari\n` +
+                    `5. 重新整理頁面後再試`
+                );
+
+                btn.disabled = false;
+                btn.textContent = '重新定位並簽到';
+            }
+        };
+
+        // ========== 取得目前位置 ==========
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('此裝置不支援定位功能'));
+                    return;
+                }
+
+                addLog('🌐 呼叫 navigator.geolocation.getCurrentPosition', 'info');
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        addLog('✅ 定位成功', 'success');
+                        resolve(position);
+                    },
+                    (error) => {
+                        addLog(`❌ 定位錯誤: code=${error.code}, message=${error.message}`, 'error');
+                        reject(error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
+
+        // ========== 計算距離 ==========
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        // ========== 儲存簽到記錄 ==========
+        async function saveCheckin(lat, lng, distance, requiresGPS) {
+            try {
+                const checkinData = {
+                    userId: currentUser.userId,
+                    displayName: currentUser.displayName,
+                    role: userRole,
+                    patrolName: currentPatrol.name,
+                    latitude: lat,
+                    longitude: lng,
+                    distance: distance,
+                    requiresGPS: requiresGPS,
+                    testMode: CONFIG.TEST_MODE,
+                    timestamp: new Date().toISOString(),
+                    createdAt: new Date()
+                };
+
+                addLog(`儲存資料: ${JSON.stringify(checkinData)}`, 'info');
+                await addDoc(collection(db, 'checkins'), checkinData);
+                addLog('✅ Firestore 寫入成功', 'success');
+                
+            } catch (error) {
+                addLog(`❌ 儲存失敗: ${error.message}`, 'error');
+                throw new Error(`儲存失敗：${error.message}`);
+            }
+        }
+
+        // ========== 顯示結果 ==========
+        function showResult(type, title, message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `
+                <h2>${title}</h2>
+                <div class="result-details">
+                    ${message.split('\n').map(line => line ? `<p>${line}</p>` : '<br>').join('')}
+                </div>
+            `;
+        }
+
+        // ========== 執行初始化 ==========
+        init();
+    </script>
+</body>
+</html>
