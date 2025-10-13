@@ -97,6 +97,12 @@
             box-shadow: 0 5px 15px rgba(255, 152, 0, 0.4);
         }
 
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         /* ========== 資訊區塊 ========== */
         .info-box {
             background: #f5f5f5;
@@ -112,6 +118,29 @@
             font-size: 0.9rem;
             line-height: 1.6;
             margin: 5px 0;
+        }
+
+        .info-box strong {
+            color: #2196F3;
+        }
+
+        /* ========== LINE 提示區塊 ========== */
+        .line-hint {
+            background: #00C300;
+            color: white;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .line-hint p {
+            margin: 5px 0;
+            font-size: 0.95rem;
+        }
+
+        .line-hint strong {
+            font-size: 1.1rem;
         }
 
         /* ========== 版本資訊 ========== */
@@ -139,6 +168,10 @@
                 font-size: 1rem;
                 padding: 12px;
             }
+
+            .logo {
+                font-size: 2.5rem;
+            }
         }
     </style>
 </head>
@@ -149,29 +182,35 @@
         <h1>龜馬山 紫皇天乙真慶宮</h1>
         <p class="subtitle">整合服務平台</p>
 
-        <!-- 導航按鈕 -->
+        <!-- 服務按鈕區（只顯示使用者功能） -->
         <a href="/checkin/" class="btn btn-primary">
             📍 奉香簽到系統
         </a>
-        
-        <a href="/checkin/manage/" class="btn btn-secondary">
-            📊 奉香管理後台
+
+        <a href="/schedule/" class="btn btn-secondary btn-disabled">
+            📅 排班系統（即將推出）
         </a>
 
-        <a href="/schedule/" class="btn btn-warning" style="opacity: 0.6; cursor: not-allowed;">
-            📅 排班系統（開發中）
+        <a href="/service/" class="btn btn-warning btn-disabled">
+            🙏 神服服務（即將推出）
         </a>
 
-        <a href="/service/" class="btn btn-warning" style="opacity: 0.6; cursor: not-allowed;">
-            🙏 神服服務（開發中）
-        </a>
+        <!-- LINE 操作提示 -->
+        <div class="line-hint">
+            <p>📱 <strong>管理員專屬入口</strong></p>
+            <p>請在 LINE 官方帳號發送以下關鍵字：</p>
+            <p>「奉香管理」「排班管理」「神服管理」</p>
+        </div>
 
-        <!-- 資訊區 -->
+        <!-- 使用說明 -->
         <div class="info-box">
             <p>📱 <strong>使用說明：</strong></p>
-            <p>1. 本服務需透過 LINE 官方帳號進行操作</p>
-            <p>2. 請先加入「龜馬山 紫皇天乙真慶宮」LINE 官方帳號</p>
-            <p>3. 發送關鍵字進行註冊與使用</p>
+            <p>1. 請先加入「龜馬山 紫皇天乙真慶宮」LINE 官方帳號</p>
+            <p>2. 發送關鍵字進行註冊：</p>
+            <p>&nbsp;&nbsp;&nbsp;• 工作人員：「奉香註冊」</p>
+            <p>&nbsp;&nbsp;&nbsp;• 志工：「志工註冊」</p>
+            <p>&nbsp;&nbsp;&nbsp;• 神服：「神服註冊」</p>
+            <p>3. 註冊後即可使用對應服務</p>
             <p>4. 如有疑問，請洽管理人員</p>
         </div>
 
@@ -182,10 +221,18 @@
     <!-- 載入共用設定 -->
     <script src="/config/superadmin.js"></script>
     <script>
-        // 顯示系統資訊（開發用）
+        // 系統初始化
+        console.log('═══════════════════════════════════════');
+        console.log('🏯 龜馬山整合服務平台');
         console.log('系統名稱:', SYSTEM_CONFIG.SYSTEM_NAME);
         console.log('系統版本:', SYSTEM_CONFIG.VERSION);
-        console.log('最高管理員 ID:', SYSTEM_CONFIG.SUPERADMIN_LINE_ID);
+        console.log('═══════════════════════════════════════');
+        
+        // 安全提示（僅在開發環境顯示）
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('⚠️ 開發模式');
+            console.log('最高管理員 ID:', SYSTEM_CONFIG.SUPERADMIN_LINE_ID);
+        }
     </script>
 </body>
 </html>
