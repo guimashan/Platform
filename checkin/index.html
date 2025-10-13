@@ -398,12 +398,12 @@
 
     <script type="module">
         // ═══════════════════════════════════════════════════════════════
-        // 奉香簽到核心功能（終極改良版）
+        // 奉香簽到核心功能（終極改良版 - 測試模式使用模擬座標）
         // ═══════════════════════════════════════════════════════════════
 
         // ========== 設定區 ==========
         const CONFIG = {
-            TEST_MODE: true,  // 測試模式：true = 不驗證 GPS，false = 正常驗證
+            TEST_MODE: true,  // 測試模式：true = 使用模擬座標，false = 正常驗證
             SHOW_DEBUG_LOG: true,  // 顯示除錯日誌
             BLOCK_LINE_APP: true  // 阻擋 LINE 內建瀏覽器
         };
@@ -497,7 +497,7 @@
                 // 顯示測試模式
                 if (CONFIG.TEST_MODE) {
                     const badge = document.getElementById('test-mode-badge');
-                    badge.textContent = '⚙️ 測試模式：GPS 驗證已關閉';
+                    badge.textContent = '⚙️ 測試模式：使用模擬座標，不驗證距離';
                     badge.classList.add('show');
                     addLog('⚙️ 測試模式啟用', 'warning');
                 }
@@ -770,12 +770,12 @@
                 addLog(`測試模式: ${CONFIG.TEST_MODE ? '是' : '否'}`, CONFIG.TEST_MODE ? 'warning' : 'info');
                 
                 // 取得 GPS 位置
-                addLog('📍 正在取得 GPS 位置...', 'info');
+                addLog('📍 正在取得位置...', 'info');
                 const position = await getCurrentPosition();
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
 
-                addLog(`✅ 定位成功`, 'success');
+                addLog(`✅ 位置取得成功`, 'success');
                 addLog(`使用者位置: ${userLat.toFixed(6)}, ${userLng.toFixed(6)}`, 'info');
                 addLog(`巡邏點位置: ${currentPatrol.lat}, ${currentPatrol.lng}`, 'info');
 
@@ -825,7 +825,8 @@
                     `地點：${currentPatrol.name}\n` +
                     `時間：${now.toLocaleString('zh-TW')}\n` +
                     `座標：${userLat.toFixed(6)}, ${userLng.toFixed(6)}\n` +
-                    (requiresGPS ? `距離：${distance.toFixed(1)} 公尺\n` : `（管理者免驗證）\n`) +
+                    (CONFIG.TEST_MODE ? `（測試模式：模擬座標）\n` : 
+                     requiresGPS ? `距離：${distance.toFixed(1)} 公尺\n` : `（管理者免驗證）\n`) +
                     `\n記錄已上傳至系統`
                 );
 
@@ -867,60 +868,55 @@
             }
         };
 
-   // ========== 取得目前位置 ==========
-function getCurrentPosition() {
-    return new Promise((resolve, reject) => {
-        // 測試模式：使用模擬座標
-        if (CONFIG.TEST_MODE) {
-            addLog('⚙️ 測試模式：使用模擬座標', 'warning');
-            
-            // 模擬 GPS 定位成功，使用萬應公的座標
-            setTimeout(() => {
-                const mockPosition = {
-                    coords: {
-                        latitude: 25.147924,   // 萬應公的緯度
-                        longitude: 121.410296, // 萬應公的經度
-                        accuracy: 10
+        // ========== 取得目前位置（測試模式使用模擬座標）==========
+        function getCurrentPosition() {
+            return new Promise((resolve, reject) => {
+                // 測試模式：使用模擬座標
+                if (CONFIG.TEST_MODE) {
+                    addLog('⚙️ 測試模式：使用模擬座標', 'warning');
+                    
+                    // 模擬 GPS 定位成功，使用萬應公的座標
+                    setTimeout(() => {
+                        const mockPosition = {
+                            coords: {
+                                latitude: 25.147924,   // 萬應公的緯度
+                                longitude: 121.410296, // 萬應公的經度
+                                accuracy: 10
+                            },
+                            timestamp: Date.now()
+                        };
+                        addLog('✅ 模擬定位成功', 'success');
+                        resolve(mockPosition);
+                    }, 500); // 模擬 0.5 秒的定位時間
+                    
+                    return;
+                }
+
+                // 正式模式：使用真實 GPS
+                if (!navigator.geolocation) {
+                    reject(new Error('此裝置不支援定位功能'));
+                    return;
+                }
+
+                addLog('🌐 呼叫 navigator.geolocation.getCurrentPosition', 'info');
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        addLog('✅ 定位成功', 'success');
+                        resolve(position);
                     },
-                    timestamp: Date.now()
-                };
-                addLog('✅ 模擬定位成功', 'success');
-                resolve(mockPosition);
-            }, 500); // 模擬 0.5 秒的定位時間
-            
-            return;
+                    (error) => {
+                        addLog(`❌ 定位錯誤: code=${error.code}, message=${error.message}`, 'error');
+                        reject(error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            });
         }
-
-        // 正式模式：使用真實 GPS
-        if (!navigator.geolocation) {
-            reject(new Error('此裝置不支援定位功能'));
-            return;
-        }
-
-        addLog('🌐 呼叫 navigator.geolocation.getCurrentPosition', 'info');
-
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                addLog('✅ 定位成功', 'success');
-                resolve(position);
-            },
-            (error) => {
-                addLog(`❌ 定位錯誤: code=${error.code}, message=${error.message}`, 'error');
-                reject(error);
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            }
-        );
-    });
-}     
-
-
-
-
-        
 
         // ========== 計算距離 ==========
         function calculateDistance(lat1, lon1, lat2, lon2) {
