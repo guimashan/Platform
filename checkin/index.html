@@ -264,7 +264,7 @@
 
     <script type="module">
         // ═══════════════════════════════════════════════════════════════
-        // 奉香簽到核心功能
+        // 奉香簽到核心功能（從 Firebase 動態讀取巡邏點）
         // ═══════════════════════════════════════════════════════════════
 
         // Firebase 設定
@@ -287,22 +287,6 @@
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
         const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
 
-        // 巡邏點資料（從需求規格書）
-        const PATROLS = {
-            '玉旨牌': {
-                name: '玉旨牌',
-                lat: 25.148332,
-                lng: 121.410871,
-                tolerance: 50 // 容許誤差（公尺）
-            },
-            '萬應公': {
-                name: '萬應公',
-                lat: 25.147924,
-                lng: 121.410296,
-                tolerance: 50
-            }
-        };
-
         // 全域變數
         let currentUser = null;
         let currentPatrol = null;
@@ -310,41 +294,80 @@
 
         // 初始化
         async function init() {
-            // 取得網址參數中的巡邏點
-            const urlParams = new URLSearchParams(window.location.search);
-            const patrolName = urlParams.get('patrol');
+            try {
+                // 取得網址參數中的巡邏點名稱
+                const urlParams = new URLSearchParams(window.location.search);
+                const patrolName = urlParams.get('patrol');
 
-            if (patrolName && PATROLS[patrolName]) {
-                currentPatrol = PATROLS[patrolName];
-                document.getElementById('patrol-name').textContent = currentPatrol.name;
-            } else {
-                document.getElementById('patrol-name').textContent = '未指定巡邏點';
-            }
-
-            // 檢查登入狀態
-            const lineUserId = localStorage.getItem('line_user_id');
-            const displayName = localStorage.getItem('line_display_name');
-            const pictureUrl = localStorage.getItem('line_picture_url');
-
-            if (lineUserId) {
-                // 已登入，顯示使用者資訊
-                currentUser = {
-                    userId: lineUserId,
-                    displayName: displayName,
-                    pictureUrl: pictureUrl
-                };
-
-                // 從 Firebase 取得使用者角色
-                const userDoc = await getDoc(doc(db, 'users', lineUserId));
-                if (userDoc.exists()) {
-                    userRole = userDoc.data().role || 'user';
+                if (patrolName) {
+                    // 從 Firebase 讀取巡邏點資料
+                    document.getElementById('patrol-name').textContent = `${patrolName}（載入中...）`;
+                    currentPatrol = await loadPatrolFromFirebase(patrolName);
+                    
+                    if (currentPatrol) {
+                        document.getElementById('patrol-name').textContent = currentPatrol.name;
+                        console.log('✅ 巡邏點資料:', currentPatrol);
+                    } else {
+                        document.getElementById('patrol-name').textContent = `❌ 找不到巡邏點：${patrolName}`;
+                        console.error('找不到巡邏點:', patrolName);
+                    }
+                } else {
+                    document.getElementById('patrol-name').textContent = '未指定巡邏點';
                 }
 
-                showUserInfo();
-                showCheckinButton();
-            } else {
-                // 未登入，顯示登入按鈕
-                showLoginButton();
+                // 檢查登入狀態
+                const lineUserId = localStorage.getItem('line_user_id');
+                const displayName = localStorage.getItem('line_display_name');
+                const pictureUrl = localStorage.getItem('line_picture_url');
+
+                if (lineUserId) {
+                    // 已登入，顯示使用者資訊
+                    currentUser = {
+                        userId: lineUserId,
+                        displayName: displayName,
+                        pictureUrl: pictureUrl
+                    };
+
+                    // 從 Firebase 取得使用者角色
+                    const userDoc = await getDoc(doc(db, 'users', lineUserId));
+                    if (userDoc.exists()) {
+                        userRole = userDoc.data().role || 'user';
+                    }
+
+                    showUserInfo();
+                    showCheckinButton();
+                } else {
+                    // 未登入，顯示登入按鈕
+                    showLoginButton();
+                }
+            } catch (error) {
+                console.error('❌ 初始化失敗:', error);
+                document.getElementById('patrol-name').textContent = '載入失敗：' + error.message;
+            }
+        }
+
+        // 從 Firebase 讀取巡邏點資料
+        async function loadPatrolFromFirebase(patrolName) {
+            try {
+                console.log('🔍 讀取巡邏點:', patrolName);
+                const patrolDoc = await getDoc(doc(db, 'patrols', patrolName));
+                
+                if (patrolDoc.exists()) {
+                    const data = patrolDoc.data();
+                    console.log('📍 巡邏點資料:', data);
+                    return {
+                        name: data.name,
+                        lat: data.lat,
+                        lng: data.lng,
+                        tolerance: data.tolerance || 50
+                    };
+                } else {
+                    console.error('❌ 文件不存在:', patrolName);
+                    return null;
+                }
+            } catch (error) {
+                console.error('❌ 讀取巡邏點失敗:', error);
+                return null;
             }
         }
 
@@ -420,7 +443,7 @@
         // 處理簽到
         window.handleCheckin = async function() {
             if (!currentPatrol) {
-                showResult('error', '未指定巡邏點', '請掃描正確的巡邏點 QR Code');
+                showResult('error', '❌ 未指定巡邏點', '請掃描正確的巡邏點 QR Code');
                 return;
             }
 
@@ -435,8 +458,8 @@
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
 
-                console.log('使用者位置:', userLat, userLng);
-                console.log('巡邏點位置:', currentPatrol.lat, currentPatrol.lng);
+                console.log('📍 使用者位置:', userLat, userLng);
+                console.log('🎯 巡邏點位置:', currentPatrol.lat, currentPatrol.lng);
 
                 // 計算距離
                 const distance = calculateDistance(
@@ -444,7 +467,7 @@
                     currentPatrol.lat, currentPatrol.lng
                 );
 
-                console.log('距離:', distance, '公尺');
+                console.log('📏 距離:', distance.toFixed(1), '公尺');
 
                 // 檢查是否需要 GPS 驗證
                 const requiresGPS = (userRole === 'user');
@@ -483,7 +506,7 @@
                 btn.style.display = 'none';
 
             } catch (error) {
-                console.error('簽到失敗:', error);
+                console.error('❌ 簽到失敗:', error);
                 let errorMessage = '未知錯誤';
 
                 if (error.code === 1) {
@@ -559,7 +582,7 @@
             };
 
             await addDoc(collection(db, 'checkins'), checkinData);
-            console.log('簽到記錄已儲存:', checkinData);
+            console.log('✅ 簽到記錄已儲存:', checkinData);
         }
 
         // 顯示結果
