@@ -550,10 +550,10 @@
 
                 const role = userDoc.data().role || 'user';
                 
-                // 只有 poweruser, admin, superadmin 可以管理巡邏點
-                if (!['poweruser', 'admin', 'superadmin'].includes(role)) {
+                // admin, superadmin 可以管理巡邏點
+                if (!['admin', 'superadmin'].includes(role)) {
                     alert('您沒有權限訪問此頁面！\n\n需要：管理者以上權限');
-                    window.location.href = '/checkin/';
+                    window.location.href = '/checkin/admin/';
                     return;
                 }
 
