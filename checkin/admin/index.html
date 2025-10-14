@@ -358,8 +358,8 @@
     <!-- 側邊選單 -->
     <div class="sidebar">
         <a href="/checkin/admin/index.html" class="active">📊 簽到記錄</a>
-        <a href="/checkin/admin/patrols.html">📍 巡邏點管理</a>
-        <a href="/checkin/admin/users.html">👥 使用者管理</a>
+        <a href="/checkin/admin/patrols.html" id="patrols-link">📍 巡邏點管理</a>
+        <a href="/checkin/admin/users.html" id="users-link">👥 使用者管理</a>
         <a href="/checkin/">🏠 返回簽到頁面</a>
     </div>
 
@@ -552,6 +552,25 @@
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('filter-date-start').value = today;
                 document.getElementById('filter-date-end').value = today;
+
+                // 根據角色隱藏/顯示選單項目
+                if (role === 'poweruser') {
+                // poweruser 不能進入巡邏點管理和使用者管理
+                    const patrolsLink = document.getElementById('patrols-link');
+                    const usersLink = document.getElementById('users-link');
+    
+                    if (patrolsLink) {
+                        patrolsLink.style.opacity = '0.5';
+                        patrolsLink.style.pointerEvents = 'none';
+                        patrolsLink.title = '需要系統管理員權限';
+                    }
+    
+                    if (usersLink) {
+                        usersLink.style.opacity = '0.5';
+                        usersLink.style.pointerEvents = 'none';
+                        usersLink.title = '需要系統管理員權限';
+                    }
+                }
 
                 console.log('初始化完成');
 
