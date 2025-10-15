@@ -298,13 +298,62 @@
                 const profile = await profileResponse.json();
                 addLog(`✅ 使用者資料: ${JSON.stringify(profile)}`, 'success');
 
+
+
+
+
+
+
+
+                
                 // 5. 儲存到 localStorage
                 updateStatus('正在儲存登入資訊...');
-                localStorage.setItem('line_user_id', profile.userId);
-                localStorage.setItem('line_display_name', profile.displayName);
-                localStorage.setItem('line_picture_url', profile.pictureUrl || '');
-                addLog('✅ 已儲存到 localStorage', 'success');
+                addLog('💾 準備儲存登入資訊到 localStorage...', 'info');
 
+                try {
+                    // 儲存三個關鍵資料
+                    localStorage.setItem('line_user_id', profile.userId);
+                    localStorage.setItem('line_display_name', profile.displayName);
+                    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+    
+                    // 額外儲存一個時間戳記，標記登入時間
+                    localStorage.setItem('line_login_time', new Date().toISOString());
+    
+                    addLog('✅ 已儲存到 localStorage', 'success');
+    
+                    // 立即讀取回來驗證
+                    const verify_userId = localStorage.getItem('line_user_id');
+                    const verify_displayName = localStorage.getItem('line_display_name');
+                    const verify_pictureUrl = localStorage.getItem('line_picture_url');
+                    const verify_loginTime = localStorage.getItem('line_login_time');
+    
+                    addLog('🔍 驗證儲存結果...', 'info');
+                    addLog(`✓ User ID: ${verify_userId ? '已儲存' : '❌ 失敗'}`, verify_userId ? 'success' : 'error');
+                    addLog(`✓ 名稱: ${verify_displayName || '(空)'}`, verify_displayName ? 'success' : 'warning');
+                    addLog(`✓ 頭像: ${verify_pictureUrl ? '已儲存' : '(空)'}`, 'info');
+                    addLog(`✓ 登入時間: ${verify_loginTime}`, 'info');
+    
+                    if (!verify_userId || !verify_displayName) {
+                        throw new Error('localStorage 寫入驗證失敗');
+                    }
+    
+                    addLog('✅ 驗證通過：資料確實已儲存', 'success');
+    
+                } catch (storageError) {
+                    addLog(`❌ localStorage 儲存失敗: ${storageError.message}`, 'error');
+                    addLog('⚠️ 可能原因：瀏覽器隱私設定阻擋了 localStorage', 'warning');
+                    throw new Error('無法儲存登入資訊，請檢查瀏覽器設定');
+                }
+
+
+
+
+
+
+
+
+
+                
                 // 6. 儲存到 Firebase
                 updateStatus('正在同步資料...');
                 addLog('💾 儲存使用者資料到 Firebase...', 'info');
