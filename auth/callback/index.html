@@ -306,44 +306,61 @@
 
 
                 
-                // 5. 儲存到 localStorage
-                updateStatus('正在儲存登入資訊...');
-                addLog('💾 準備儲存登入資訊到 localStorage...', 'info');
+                
+                // 5. 儲存到 localStorage（強化版 - 確保真的存進去）
+updateStatus('正在儲存登入資訊...');
+addLog('💾 正在儲存登入資訊到 localStorage...', 'info');
 
-                try {
-                    // 儲存三個關鍵資料
-                    localStorage.setItem('line_user_id', profile.userId);
-                    localStorage.setItem('line_display_name', profile.displayName);
-                    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+try {
+    // 先清除可能的舊資料
+    console.log('清除舊的 localStorage 資料...');
+    localStorage.removeItem('line_user_id');
+    localStorage.removeItem('line_display_name');
+    localStorage.removeItem('line_picture_url');
     
-                    // 額外儲存一個時間戳記，標記登入時間
-                    localStorage.setItem('line_login_time', new Date().toISOString());
+    // 儲存新資料
+    console.log('儲存新的登入資料...');
+    localStorage.setItem('line_user_id', profile.userId);
+    localStorage.setItem('line_display_name', profile.displayName);
+    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+    localStorage.setItem('line_login_timestamp', Date.now().toString());
     
-                    addLog('✅ 已儲存到 localStorage', 'success');
+    // 立即讀取驗證
+    const saved_userId = localStorage.getItem('line_user_id');
+    const saved_displayName = localStorage.getItem('line_display_name');
+    const saved_pictureUrl = localStorage.getItem('line_picture_url');
+    const saved_timestamp = localStorage.getItem('line_login_timestamp');
     
-                    // 立即讀取回來驗證
-                    const verify_userId = localStorage.getItem('line_user_id');
-                    const verify_displayName = localStorage.getItem('line_display_name');
-                    const verify_pictureUrl = localStorage.getItem('line_picture_url');
-                    const verify_loginTime = localStorage.getItem('line_login_time');
+    console.log('驗證儲存結果:', {
+        userId: saved_userId ? '✓' : '✗',
+        displayName: saved_displayName ? '✓' : '✗',
+        pictureUrl: saved_pictureUrl ? '✓' : '✗',
+        timestamp: saved_timestamp ? '✓' : '✗'
+    });
     
-                    addLog('🔍 驗證儲存結果...', 'info');
-                    addLog(`✓ User ID: ${verify_userId ? '已儲存' : '❌ 失敗'}`, verify_userId ? 'success' : 'error');
-                    addLog(`✓ 名稱: ${verify_displayName || '(空)'}`, verify_displayName ? 'success' : 'warning');
-                    addLog(`✓ 頭像: ${verify_pictureUrl ? '已儲存' : '(空)'}`, 'info');
-                    addLog(`✓ 登入時間: ${verify_loginTime}`, 'info');
+    addLog('✅ localStorage 寫入驗證:', 'info');
+    addLog(`  User ID: ${saved_userId ? '✓ 已儲存' : '✗ 失敗'}`, saved_userId ? 'success' : 'error');
+    addLog(`  名稱: ${saved_displayName || '✗ 失敗'}`, saved_displayName ? 'success' : 'error');
+    addLog(`  頭像: ${saved_pictureUrl ? '✓ 已儲存' : '(無)'}`, 'info');
+    addLog(`  時間戳: ${saved_timestamp ? '✓ 已儲存' : '✗ 失敗'}`, saved_timestamp ? 'success' : 'error');
     
-                    if (!verify_userId || !verify_displayName) {
-                        throw new Error('localStorage 寫入驗證失敗');
-                    }
+    if (!saved_userId || !saved_displayName) {
+        throw new Error('localStorage 寫入驗證失敗！資料沒有正確儲存。');
+    }
     
-                    addLog('✅ 驗證通過：資料確實已儲存', 'success');
+    addLog('✅ 所有資料已成功儲存到 localStorage', 'success');
     
-                } catch (storageError) {
-                    addLog(`❌ localStorage 儲存失敗: ${storageError.message}`, 'error');
-                    addLog('⚠️ 可能原因：瀏覽器隱私設定阻擋了 localStorage', 'warning');
-                    throw new Error('無法儲存登入資訊，請檢查瀏覽器設定');
-                }
+} catch (storageError) {
+    console.error('localStorage 錯誤:', storageError);
+    addLog(`❌ localStorage 儲存失敗: ${storageError.message}`, 'error');
+    addLog('⚠️ 可能的原因:', 'warning');
+    addLog('  1. 瀏覽器的隱私模式阻擋了 localStorage', 'warning');
+    addLog('  2. 瀏覽器設定不允許網站儲存資料', 'warning');
+    addLog('  3. 儲存空間已滿', 'warning');
+    
+    alert('登入資訊儲存失敗！\n\n可能原因：\n1. 瀏覽器隱私模式\n2. 儲存空間已滿\n\n請使用一般模式重試。');
+    throw storageError;
+}
 
 
 
