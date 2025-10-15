@@ -1,0 +1,17 @@
+{
+  "name": "guimashan-platform",
+  "version": "1.0.0",
+  "description": "龜馬山整合服務平台",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0" // 或者選擇一個較新的版本
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
