@@ -66,6 +66,33 @@
             50% { opacity: 0.8; }
         }
 
+        /* 新手歡迎訊息 */
+        .welcome-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .welcome-box h3 {
+            color: #1976D2;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .welcome-box p {
+            color: #555;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+
+        .welcome-box .emoji {
+            font-size: 1.2rem;
+            margin-right: 5px;
+        }
+
         .user-info {
             background: #f5f5f5;
             padding: 20px;
@@ -304,6 +331,17 @@
             <p class="subtitle">龜馬山 紫皇天乙真慶宮</p>
         </div>
 
+        <!-- 新手歡迎訊息（未指定巡邏點時顯示） -->
+        <div id="welcome-box" class="welcome-box" style="display: none;">
+            <h3>👋 歡迎使用奉香簽到系統！</h3>
+            <p><span class="emoji">📍</span>目前位置：龜馬山辦公室（練習用）</p>
+            <p><span class="emoji">💡</span>這是一個練習巡邏點，您可以：</p>
+            <p style="margin-left: 20px;">• 第一次登入和設定</p>
+            <p style="margin-left: 20px;">• 測試簽到功能</p>
+            <p style="margin-left: 20px;">• 熟悉操作流程</p>
+            <p style="margin-top: 10px;"><span class="emoji">🎯</span>實際簽到時，請掃描各巡邏點的 QR Code</p>
+        </div>
+
         <!-- 使用者資訊 -->
         <div id="user-info" style="display: none;"></div>
 
@@ -368,7 +406,8 @@
         const CONFIG = {
             TEST_MODE: true,              // 測試模式：使用模擬座標
             SHOW_DEBUG_LOG: false,        // 是否自動顯示日誌
-            BLOCK_LINE_APP: true          // 阻擋 LINE 內建瀏覽器
+            BLOCK_LINE_APP: true,         // 阻擋 LINE 內建瀏覽器
+            DEFAULT_PATROL: '龜馬山 辦公室' // 預設巡邏點（用於首頁）
         };
 
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
@@ -383,6 +422,7 @@
         let currentUser = null;
         let userRole = 'user';
         let patrolData = null;
+        let isDefaultPatrol = false; // 是否使用預設巡邏點
 
         // ==========================================
         // 開發者工具：顯示 localStorage 狀態
@@ -497,16 +537,20 @@
         }
 
         // ==========================================
-        // 取得巡邏點參數
+        // 取得巡邏點參數（改良版：支援預設值）
         // ==========================================
         function getPatrolName() {
             const urlParams = new URLSearchParams(window.location.search);
-            const patrolName = urlParams.get('patrol');
+            let patrolName = urlParams.get('patrol');
             
             if (patrolName) {
                 addLog(`巡邏點參數: ${patrolName}`, 'info');
+                isDefaultPatrol = false;
             } else {
-                addLog('未指定巡邏點', 'warning');
+                // 如果沒有指定巡邏點，使用預設值
+                patrolName = CONFIG.DEFAULT_PATROL;
+                isDefaultPatrol = true;
+                addLog(`使用預設巡邏點: ${patrolName}`, 'info');
             }
             
             return patrolName;
@@ -565,6 +609,18 @@
                 <p>容許誤差：±${patrolData.tolerance} 公尺</p>
             `;
             patrolInfoDiv.style.display = 'block';
+        }
+
+        // ==========================================
+        // 顯示歡迎訊息（僅在使用預設巡邏點時）
+        // ==========================================
+        function showWelcomeBox() {
+            if (isDefaultPatrol) {
+                document.getElementById('welcome-box').style.display = 'block';
+                addLog('💡 顯示新手歡迎訊息', 'info');
+            } else {
+                document.getElementById('welcome-box').style.display = 'none';
+            }
         }
 
         // ==========================================
@@ -647,10 +703,10 @@
         };
 
         // ==========================================
-        // 計算兩點距離（Haversine 公式）- 修正拼寫錯誤
+        // 計算兩點距離（Haversine 公式）
         // ==========================================
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // 地球半徑（公尺）
+            const R = 6371e3;
             const φ1 = lat1 * Math.PI / 180;
             const φ2 = lat2 * Math.PI / 180;
             const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -659,9 +715,9 @@
             const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
                       Math.cos(φ1) * Math.cos(φ2) *
                       Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); // ✅ 修正：atan2
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-            return R * c; // 距離（公尺）
+            return R * c;
         }
 
         // ==========================================
@@ -669,7 +725,6 @@
         // ==========================================
         function getCurrentPosition() {
             return new Promise((resolve, reject) => {
-                // 檢查是否為免 GPS 驗證角色
                 const isExempt = GPS_EXEMPT_ROLES.includes(userRole);
 
                 if (CONFIG.TEST_MODE || isExempt) {
@@ -740,34 +795,27 @@
             const resultDiv = document.getElementById('result');
 
             try {
-                // 檢查是否有巡邏點資料
                 if (!patrolData) {
                     throw new Error('未指定巡邏點，請掃描巡邏點的 QR Code');
                 }
 
-                // 檢查是否已登入
                 if (!currentUser) {
                     throw new Error('請先登入');
                 }
 
-                // 禁用按鈕
                 btn.disabled = true;
                 btn.textContent = '定位中...';
                 resultDiv.style.display = 'none';
 
                 addLog('=== 開始簽到流程 ===', 'info');
 
-                // 檢查是否為免 GPS 驗證角色
                 const isExempt = GPS_EXEMPT_ROLES.includes(userRole);
-
-                // 1. 取得 GPS 位置
                 const position = await getCurrentPosition();
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
 
                 addLog(`使用者座標: ${userLat}, ${userLng}`, 'info');
 
-                // 2. 計算距離
                 const distance = calculateDistance(
                     userLat, userLng,
                     patrolData.lat, patrolData.lng
@@ -775,7 +823,6 @@
 
                 addLog(`距離巡邏點: ${distance.toFixed(1)} 公尺`, 'info');
 
-                // 3. 驗證距離（只有 user 角色需要驗證，且不在測試模式）
                 const requiresGPS = userRole === 'user';
                 
                 if (requiresGPS && !CONFIG.TEST_MODE && distance > patrolData.tolerance) {
@@ -789,7 +836,6 @@
                     addLog('✓ 距離驗證通過', 'success');
                 }
 
-                // 4. 儲存簽到記錄
                 addLog('正在儲存簽到記錄...', 'info');
 
                 const checkinData = {
@@ -803,6 +849,7 @@
                     requiresGPS: requiresGPS,
                     gpsExempt: isExempt,
                     testMode: CONFIG.TEST_MODE,
+                    isDefaultPatrol: isDefaultPatrol,  // 新增：標記是否為預設巡邏點
                     timestamp: new Date().toISOString(),
                     createdAt: Timestamp.now()
                 };
@@ -811,7 +858,6 @@
 
                 addLog('✓ 簽到記錄已儲存', 'success');
 
-                // 5. 顯示成功訊息
                 const now = new Date();
                 const timeString = now.toLocaleString('zh-TW', {
                     year: 'numeric',
@@ -826,11 +872,11 @@
                 resultDiv.className = 'result success';
                 resultDiv.innerHTML = `
                     <h3>✅ 奉香成功！</h3>
-                    <p><strong>地點：
                     <p><strong>地點：</strong>${patrolData.name}</p>
                     <p><strong>時間：</strong>${timeString}</p>
                     <p><strong>座標：</strong>${userLat.toFixed(6)}, ${userLng.toFixed(6)}</p>
                     <p><strong>距離：</strong>${distance.toFixed(1)} 公尺</p>
+                    ${isDefaultPatrol ? '<p style="color: #2196F3;"><strong>📍 練習簽到</strong></p>' : ''}
                     ${isExempt ? '<p style="color: #FFD700;"><strong>🌟 免 GPS 驗證特權</strong></p>' : ''}
                     ${CONFIG.TEST_MODE ? '<p style="color: #ff9800;"><strong>⚙️ 測試模式</strong></p>' : ''}
                     <p style="margin-top: 10px; color: #4CAF50;">記錄已上傳至系統</p>
@@ -865,27 +911,24 @@
             try {
                 addLog('=== 系統初始化 ===', 'info');
 
-                // 1. 檢查瀏覽器
                 if (!checkBrowser()) {
                     return;
                 }
 
-                // 2. 顯示測試模式標記
                 showTestModeBanner();
 
-                // 3. 自動顯示日誌（如果設定）
                 if (CONFIG.SHOW_DEBUG_LOG) {
                     toggleLog();
                 }
 
-                // 4. 取得巡邏點名稱
+                // 取得巡邏點名稱（如果沒有指定，會使用預設值）
                 const patrolName = getPatrolName();
 
-                // 5. 載入巡邏點資料
                 if (patrolName) {
                     patrolData = await loadPatrolData(patrolName);
                     if (patrolData) {
                         showPatrolInfo();
+                        showWelcomeBox(); // 顯示歡迎訊息（如果是預設巡邏點）
                     } else {
                         addLog('⚠️ 無法載入巡邏點資料', 'warning');
                         document.getElementById('patrol-info').innerHTML = `
@@ -900,12 +943,9 @@
                     }
                 }
 
-                // ==========================================
-                // 6. 檢查登入狀態（強化版 - 詳細日誌）
-                // ==========================================
+                // 檢查登入狀態
                 addLog('🔍 正在檢查登入狀態...', 'info');
 
-                // 先檢查 localStorage 是否可用
                 try {
                     const testKey = '__localStorage_test__';
                     localStorage.setItem(testKey, 'test');
@@ -921,13 +961,11 @@
                     alert('⚠️ 瀏覽器無法儲存資料！\n\n請確認：\n1. 不是使用無痕/私密瀏覽模式\n2. 瀏覽器設定允許儲存資料\n\n建議使用 Chrome 或 Safari 的一般模式。');
                 }
 
-                // 讀取 localStorage
                 const lineUserId = localStorage.getItem('line_user_id');
                 const displayName = localStorage.getItem('line_display_name');
                 const pictureUrl = localStorage.getItem('line_picture_url');
                 const loginTimestamp = localStorage.getItem('line_login_timestamp');
 
-                // 詳細記錄每個欄位
                 addLog('📦 讀取 localStorage 內容:', 'info');
                 console.log('=== localStorage 詳細內容 ===');
                 console.log('line_user_id:', lineUserId);
@@ -945,9 +983,7 @@
                 addLog(`  └─ line_login_timestamp: ${loginTimestamp ? '✓ 有 (' + new Date(parseInt(loginTimestamp)).toLocaleString('zh-TW') + ')' : '✗ 無'}`, 
                        loginTimestamp ? 'success' : 'warning');
 
-                // 判斷是否已登入
                 if (lineUserId && displayName) {
-                    // ✅ 已登入
                     addLog('', 'info');
                     addLog('✅ 登入狀態: 已登入', 'success');
                     addLog(`✓ 使用者: ${displayName} (${lineUserId.substring(0, 10)}...)`, 'success');
@@ -965,7 +1001,6 @@
                         pictureUrl: pictureUrl || ''
                     };
 
-                    // 取得使用者角色
                     addLog('正在取得使用者角色...', 'info');
                     try {
                         const userDoc = await getDoc(doc(db, 'users', lineUserId));
@@ -986,7 +1021,6 @@
                     showCheckinButton();
                     
                 } else {
-                    // ❌ 未登入
                     addLog('', 'info');
                     addLog('ℹ️ 登入狀態: 未登入', 'info');
                     
@@ -1011,7 +1045,6 @@
             }
         }
 
-        // 執行初始化
         init();
 
     </script>
