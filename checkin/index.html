@@ -84,6 +84,17 @@
             font-size: 0.9rem;
         }
 
+        .privilege-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #333;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
         .patrol-info {
             background: #e3f2fd;
             padding: 20px;
@@ -363,6 +374,9 @@
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
         const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
 
+        // 免 GPS 驗證的角色
+        const GPS_EXEMPT_ROLES = ['superadmin', 'admin', 'poweruser'];
+
         // ==========================================
         // 全域變數
         // ==========================================
@@ -559,12 +573,20 @@
         function showUserInfo() {
             if (!currentUser) return;
 
+            const roleDisplayName = getRoleDisplayName(userRole);
+            const isExempt = GPS_EXEMPT_ROLES.includes(userRole);
+
             const userInfoDiv = document.getElementById('user-info');
             userInfoDiv.innerHTML = `
                 <h2>您好，${currentUser.displayName}！</h2>
-                <p>角色：${getRoleDisplayName(userRole)}</p>
+                <p>角色：${roleDisplayName}</p>
+                ${isExempt ? '<div class="privilege-badge">🌟 免 GPS 位置驗證</div>' : ''}
             `;
             userInfoDiv.style.display = 'block';
+
+            if (isExempt) {
+                addLog(`🌟 ${roleDisplayName} 享有免 GPS 驗證特權`, 'success');
+            }
         }
 
         function getRoleDisplayName(role) {
@@ -625,7 +647,7 @@
         };
 
         // ==========================================
-        // 計算兩點距離（Haversine 公式）
+        // 計算兩點距離（Haversine 公式）- 修正拼寫錯誤
         // ==========================================
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3; // 地球半徑（公尺）
@@ -637,7 +659,7 @@
             const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
                       Math.cos(φ1) * Math.cos(φ2) *
                       Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.ath.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); // ✅ 修正：atan2
 
             return R * c; // 距離（公尺）
         }
@@ -647,11 +669,15 @@
         // ==========================================
         function getCurrentPosition() {
             return new Promise((resolve, reject) => {
-                if (CONFIG.TEST_MODE) {
-                    addLog('⚙️ 測試模式：使用模擬座標', 'warning');
+                // 檢查是否為免 GPS 驗證角色
+                const isExempt = GPS_EXEMPT_ROLES.includes(userRole);
+
+                if (CONFIG.TEST_MODE || isExempt) {
+                    const reason = CONFIG.TEST_MODE ? '測試模式' : `${getRoleDisplayName(userRole)}免驗證`;
+                    addLog(`⚙️ ${reason}：使用模擬座標`, 'warning');
                     
                     if (!patrolData) {
-                        reject(new Error('測試模式需要巡邏點資料'));
+                        reject(new Error('需要巡邏點資料才能使用模擬座標'));
                         return;
                     }
                     
@@ -731,6 +757,9 @@
 
                 addLog('=== 開始簽到流程 ===', 'info');
 
+                // 檢查是否為免 GPS 驗證角色
+                const isExempt = GPS_EXEMPT_ROLES.includes(userRole);
+
                 // 1. 取得 GPS 位置
                 const position = await getCurrentPosition();
                 const userLat = position.coords.latitude;
@@ -746,7 +775,7 @@
 
                 addLog(`距離巡邏點: ${distance.toFixed(1)} 公尺`, 'info');
 
-                // 3. 驗證距離（user 角色需要驗證）
+                // 3. 驗證距離（只有 user 角色需要驗證，且不在測試模式）
                 const requiresGPS = userRole === 'user';
                 
                 if (requiresGPS && !CONFIG.TEST_MODE && distance > patrolData.tolerance) {
@@ -754,7 +783,11 @@
                     throw new Error(`您的位置不在巡邏點範圍內\n\n實際距離：${distance.toFixed(1)} 公尺\n容許誤差：±${patrolData.tolerance} 公尺`);
                 }
 
-                addLog('✓ 距離驗證通過', 'success');
+                if (isExempt) {
+                    addLog('🌟 免 GPS 驗證，跳過距離檢查', 'success');
+                } else {
+                    addLog('✓ 距離驗證通過', 'success');
+                }
 
                 // 4. 儲存簽到記錄
                 addLog('正在儲存簽到記錄...', 'info');
@@ -768,6 +801,7 @@
                     longitude: userLng,
                     distance: parseFloat(distance.toFixed(1)),
                     requiresGPS: requiresGPS,
+                    gpsExempt: isExempt,
                     testMode: CONFIG.TEST_MODE,
                     timestamp: new Date().toISOString(),
                     createdAt: Timestamp.now()
@@ -792,10 +826,12 @@
                 resultDiv.className = 'result success';
                 resultDiv.innerHTML = `
                     <h3>✅ 奉香成功！</h3>
+                    <p><strong>地點：
                     <p><strong>地點：</strong>${patrolData.name}</p>
                     <p><strong>時間：</strong>${timeString}</p>
                     <p><strong>座標：</strong>${userLat.toFixed(6)}, ${userLng.toFixed(6)}</p>
                     <p><strong>距離：</strong>${distance.toFixed(1)} 公尺</p>
+                    ${isExempt ? '<p style="color: #FFD700;"><strong>🌟 免 GPS 驗證特權</strong></p>' : ''}
                     ${CONFIG.TEST_MODE ? '<p style="color: #ff9800;"><strong>⚙️ 測試模式</strong></p>' : ''}
                     <p style="margin-top: 10px; color: #4CAF50;">記錄已上傳至系統</p>
                 `;
@@ -842,15 +878,7 @@
                     toggleLog();
                 }
 
-                // 4. 取得巡邏點名
-
-
-
-
-
-
-
-            // 4. 取得巡邏點名稱
+                // 4. 取得巡邏點名稱
                 const patrolName = getPatrolName();
 
                 // 5. 載入巡邏點資料
