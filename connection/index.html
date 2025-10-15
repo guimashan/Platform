@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code + 短網址產生器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            display: none; /* 初始隱藏結果 */
+        }
+        #qrCodeContainer {
+            text-align: center;
+            margin: 20px 0;
+        }
+        #shortUrlDisplay {
+            word-break: break-all;
+            font-size: 18px;
+            color: #007bff;
+        }
+        .copy-btn {
+            background-color: #007bff;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code + 短網址產生器</h1>
+        <p>輸入長網址，產生對應的 QR Code 和隨機短網址。</p>
+        <form id="urlForm">
+            <div class="form-group">
+                <label for="longUrl">請輸入長網址:</label>
+                <input type="url" id="longUrl" name="longUrl" placeholder="https://example.com" required>
+            </div>
+            <button type="submit">產生 QR Code & 短網址</button>
+        </form>
+        <div id="result">
+            <h2>結果</h2>
+            <div id="qrCodeContainer"></div>
+            <p><strong>短網址:</strong> <span id="shortUrlDisplay"></span></p>
+            <button class="copy-btn" id="copyShortUrlBtn">複製短網址</button>
+        </div>
+        <div id="error" class="error"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        document.getElementById('urlForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // 阻止表單預設提交行為
+
+            const longUrl = document.getElementById('longUrl').value.trim();
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const qrCodeContainer = document.getElementById('qrCodeContainer');
+            const shortUrlDisplay = document.getElementById('shortUrlDisplay');
+
+            if (!longUrl) {
+                showError('請輸入網址');
+                return;
+            }
+
+            // 清空之前的結果和錯誤
+            errorDiv.textContent = '';
+            qrCodeContainer.innerHTML = ''; // 清空之前的 QR Code
+            resultDiv.style.display = 'none';
+
+            try {
+                // 呼叫後端 API 來產生短網址和 QR Code
+                // 注意: 這裡的 API 路徑 `/api/generate-short-url` 是 Vercel API Route 的預設路徑
+                // 你需要稍後建立 `api/generate-short-url.js` 檔案
+                const response = await fetch('/api/generate-short-url', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ longUrl: longUrl }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '產生短網址失敗');
+                }
+
+                const data = await response.json();
+
+                // 顯示短網址
+                shortUrlDisplay.textContent = data.shortUrl;
+
+                // 生成 QR Code
+                // 注意: QR Code 連結的是 *短網址*，而不是長網址
+                new QRCode(qrCodeContainer, {
+                    text: data.shortUrl, // QR Code 包含短網址
+                    width: 128,
+                    height: 128,
+                    correctLevel: QRCode.CorrectLevel.H // 容錯等級較高
+                });
+
+                // 顯示結果區域
+                resultDiv.style.display = 'block';
+
+            } catch (err) {
+                console.error('Error:', err);
+                showError(err.message || '發生錯誤');
+            }
+        });
+
+        // 複製短網址功能
+        document.getElementById('copyShortUrlBtn').addEventListener('click', function() {
+            const shortUrl = document.getElementById('shortUrlDisplay').textContent;
+            if (shortUrl) {
+                navigator.clipboard.writeText(shortUrl)
+                    .then(() => {
+                        alert('短網址已複製到剪貼簿！');
+                    })
+                    .catch(err => {
+                        console.error('複製失敗', err);
+                        // 如果 navigator.clipboard 不支援，可以用傳統方式
+                        const textArea = document.createElement('textarea');
+                        textArea.value = shortUrl;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        try {
+                            document.execCommand('copy');
+                            alert('短網址已複製到剪貼簿！');
+                        } catch (err) {
+                            console.error('複製失敗', err);
+                            alert('複製失敗，請手動複製');
+                        }
+                        document.body.removeChild(textArea);
+                    });
+            }
+        });
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+        }
+    </script>
+</body>
+</html>
