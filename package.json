@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
-  }, // <-- 這裡的逗號是正確的，因為它不是最後一個屬性
+  },
   "dependencies": {
     "firebase-admin": "^12.0.0"
   },
