@@ -26,7 +26,7 @@ function generateUniqueShortCode(length = 6) {
                .replace(/=/g, '')
                .substring(0, length);
     tries++;
-  } while (isShortCodeExists(code) && tries < maxTries);
+  } while (isShortCodeExists(code) && tries < maxTries); // 這裡會有問題，因為 isShortCodeExists 是 async
 
   if (tries >= maxTries) {
     throw new Error('生成唯一短碼失敗，請稍後再試');
@@ -65,14 +65,17 @@ export default async function handler(req, res) {
   try {
     new URL(longUrl);
 
+    // **修正：將生成和檢查邏輯移到這裡，並正確等待非同步操作**
     let shortCode;
     let tries = 0;
     const maxTries = 20; // 增加嘗試次數以應對競爭條件
+    let exists = false;
+
     do {
-      shortCode = generateUniqueShortCode(6);
-      const exists = await isShortCodeExists(shortCode);
-      if (exists) tries++;
-    } while (exists && tries < maxTries);
+      shortCode = generateUniqueShortCode(6); // 生成一個碼
+      exists = await isShortCodeExists(shortCode); // 檢查是否存在
+      if (exists) tries++; // 如果存在，增加嘗試次數
+    } while (exists && tries < maxTries); // 如果存在且未超過最大嘗試次數，則重複
 
     if (tries >= maxTries) {
       return res.status(500).json({ error: '產生唯一短碼失敗，請稍後再試' });
