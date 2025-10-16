@@ -2,18 +2,41 @@
 import { randomBytes } from 'crypto';
 const admin = require('firebase-admin');
 
-// 檢查是否已經初始化
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+// --- 新增：安全地初始化 Firebase ---
+let firebaseInitialized = false;
+
+function initializeFirebase() {
+  if (firebaseInitialized) return;
+
+  // 檢查環境變數是否存在
+  if (!process.env.FIREBASE_CONFIG) {
+    throw new Error('FIREBASE_CONFIG 環境變數未設定');
+  }
+
+  try {
+    // 嘗試解析 JSON
+    const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG);
+
+    // 初始化 Firebase
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+
+    firebaseInitialized = true;
+    console.log('Firebase Admin SDK 初始化成功');
+  } catch (error) {
+    console.error('Firebase 初始化失敗:', error);
+    throw new Error(`Firebase 初始化失敗: ${error.message}`);
+  }
 }
+
+// 在任何需要使用 Firebase 的函數之前，先呼叫此函數
+initializeFirebase();
 
 const db = admin.firestore();
 
-// --- 生成唯一短碼的函數 ---
-function generateUniqueShortCode(length = 6) {
+// --- 生成唯一短碼的函數 (已修正為非同步函數) ---
+async function generateUniqueShortCode(length = 6) {
   let code;
   let tries = 0;
   const maxTries = 10;
@@ -26,7 +49,7 @@ function generateUniqueShortCode(length = 6) {
                .replace(/=/g, '')
                .substring(0, length);
     tries++;
-  } while (isShortCodeExists(code) && tries < maxTries); // 這裡會有問題，因為 isShortCodeExists 是 async
+  } while (await isShortCodeExists(code) && tries < maxTries); // 使用 await
 
   if (tries >= maxTries) {
     throw new Error('生成唯一短碼失敗，請稍後再試');
@@ -65,17 +88,14 @@ export default async function handler(req, res) {
   try {
     new URL(longUrl);
 
-    // **修正：將生成和檢查邏輯移到這裡，並正確等待非同步操作**
     let shortCode;
     let tries = 0;
     const maxTries = 20; // 增加嘗試次數以應對競爭條件
-    let exists = false;
-
     do {
-      shortCode = generateUniqueShortCode(6); // 生成一個碼
-      exists = await isShortCodeExists(shortCode); // 檢查是否存在
-      if (exists) tries++; // 如果存在，增加嘗試次數
-    } while (exists && tries < maxTries); // 如果存在且未超過最大嘗試次數，則重複
+      shortCode = await generateUniqueShortCode(6); // 使用 await
+      const exists = await isShortCodeExists(shortCode); // 使用 await
+      if (exists) tries++;
+    } while (exists && tries < maxTries);
 
     if (tries >= maxTries) {
       return res.status(500).json({ error: '產生唯一短碼失敗，請稍後再試' });
