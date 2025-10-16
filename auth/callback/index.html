@@ -5,12 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LINE 登入處理中...</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Microsoft JhengHei', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -18,27 +12,36 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            margin: 0;
         }
 
         .container {
             background: white;
             border-radius: 20px;
-            padding: 40px 30px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
             text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
         }
 
         .spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #00C300;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 30px;
+            margin: 20px auto;
         }
 
         @keyframes spin {
@@ -46,209 +49,117 @@
             100% { transform: rotate(360deg); }
         }
 
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-
         .status {
             color: #666;
-            margin: 15px 0;
-            font-size: 1rem;
+            font-size: 0.9rem;
+            margin-top: 15px;
         }
 
         .error {
             background: #ffebee;
-            border: 2px solid #f44336;
-            border-radius: 10px;
             padding: 20px;
-            margin-top: 30px;
-            text-align: left;
+            border-radius: 10px;
+            border-left: 4px solid #f44336;
+            margin-top: 20px;
         }
 
         .error h2 {
-            color: #f44336;
-            margin-bottom: 15px;
-            font-size: 1.3rem;
+            color: #c62828;
+            margin-bottom: 10px;
         }
 
-        .error-details {
-            background: #fff;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            color: #555;
-            word-wrap: break-word;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .error-details p {
-            margin: 8px 0;
+        .error p {
+            color: #666;
             line-height: 1.6;
         }
-
-        .btn {
-            margin-top: 20px;
-            padding: 12px 30px;
-            background: #00C300;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn:hover {
-            background: #00B000;
-        }
-
-        .debug-log {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 0.75rem;
-            font-family: 'Courier New', monospace;
-            text-align: left;
-        }
-
-        .log-entry {
-            margin: 5px 0;
-            padding: 3px 0;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .log-success { color: #4CAF50; }
-        .log-error { color: #f44336; }
-        .log-warning { color: #ff9800; }
-        .log-info { color: #2196F3; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="spinner" id="spinner"></div>
-        <h1 id="title">LINE 登入處理中...</h1>
-        <p class="status" id="status">請稍候，正在驗證您的身份</p>
-        
-        <div id="error-container"></div>
-        <div id="debug-log" class="debug-log"></div>
+        <div class="logo">🔐</div>
+        <h1>LINE 登入處理中</h1>
+        <div class="spinner"></div>
+        <div class="status" id="status">正在驗證您的身份...</div>
+        <div id="error" style="display: none;"></div>
     </div>
 
-    <!-- 載入共用設定 -->
-    <script src="/config/superadmin.js"></script>
-
     <script type="module">
-        // ═══════════════════════════════════════════════════════════════
-        // LINE Login Callback 處理（改良版 - 詳細日誌）
-        // ═══════════════════════════════════════════════════════════════
+        const LINE_LOGIN_CHANNEL_ID = '2008269293';
+        const LINE_LOGIN_CHANNEL_SECRET = 'b0e4ce66e9e6bffee3eb3bf1ab7b6ca7';
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
 
-        // Firebase 設定
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.firebasestorage.app",
-            messagingSenderId: "698452461679",
-            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // LINE API 設定
-        const LINE_CHANNEL_ID = '2008269293';
-        const LINE_CHANNEL_SECRET = '025a71c97099343e6e688bb6e393a125';
-
-        // 日誌系統
-        function addLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString('zh-TW');
-            const logDiv = document.getElementById('debug-log');
-            
-            const entry = document.createElement('div');
-            entry.className = `log-entry log-${type}`;
-            entry.textContent = `[${timestamp}] ${message}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-
-            console.log(`[${type.toUpperCase()}] ${message}`);
-        }
-
-        // 顯示錯誤
-        function showError(title, details) {
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('title').textContent = '❌ ' + title;
-            document.getElementById('status').textContent = '';
-
-            const errorHtml = `
-                <div class="error">
-                    <h2>登入失敗</h2>
-                    <p>${title}</p>
-                    <div class="error-details">
-                        ${details.split('\n').map(line => `<p>${line}</p>`).join('')}
-                    </div>
-                    <a href="/checkin/" class="btn">返回簽到頁面</a>
-                </div>
-            `;
-
-            document.getElementById('error-container').innerHTML = errorHtml;
-        }
-
-        // 更新狀態
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
+            console.log('[STATUS]', message);
         }
 
-        // 主要處理流程
+        function showError(title, message) {
+            document.querySelector('.spinner').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').innerHTML = `
+                <div class="error">
+                    <h2>❌ ${title}</h2>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
         async function handleCallback() {
             try {
-                addLog('========== 開始處理 LINE Callback ==========', 'info');
+                console.log('=== LINE 登入 Callback 開始 ===');
 
                 // 1. 取得 URL 參數
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 const state = urlParams.get('state');
                 const error = urlParams.get('error');
-                const errorDescription = urlParams.get('error_description');
 
-                addLog(`URL 參數: code=${code ? '✓' : '✗'}, state=${state ? '✓' : '✗'}`, 'info');
+                console.log('URL 參數:');
+                console.log('  - code:', code ? '✓ 有' : '✗ 無');
+                console.log('  - state:', state ? '✓ 有' : '✗ 無');
+                console.log('  - error:', error || '無');
 
                 // 檢查是否有錯誤
                 if (error) {
-                    addLog(`❌ LINE 授權錯誤: ${error}`, 'error');
-                    throw new Error(`LINE 授權失敗: ${error}\n${errorDescription || ''}`);
+                    throw new Error(`LINE 授權失敗: ${error}`);
                 }
 
+                // 檢查是否有 code
                 if (!code) {
-                    addLog('❌ 缺少 authorization code', 'error');
-                    throw new Error('缺少 authorization code\n請重新登入');
+                    throw new Error('缺少授權碼 (code)');
                 }
 
-                // 2. 解析 state (redirect URL)
-                let redirectUrl = '/checkin/';
-                try {
-                    const stateData = JSON.parse(decodeURIComponent(state));
-                    redirectUrl = stateData.redirect || '/checkin/';
-                    addLog(`導向網址: ${redirectUrl}`, 'info');
-                } catch (e) {
-                    addLog('⚠️ 無法解析 state，使用預設導向', 'warning');
+                // 2. 解析 state 取得原始頁面
+                let redirectUrl = '/checkin/'; // 預設導向
+
+                if (state) {
+                    try {
+                        console.log('原始 state:', state);
+                        const decodedState = decodeURIComponent(state);
+                        console.log('解碼後 state:', decodedState);
+                        
+                        const stateData = JSON.parse(decodedState);
+                        console.log('解析後 state 資料:', stateData);
+                        
+                        if (stateData.redirect) {
+                            redirectUrl = stateData.redirect;
+                            console.log('✓ 將導回:', redirectUrl);
+                        } else {
+                            console.warn('⚠️ state 中沒有 redirect 欄位');
+                        }
+                    } catch (e) {
+                        console.error('✗ 無法解析 state:', e);
+                        console.error('State 內容:', state);
+                        console.log('⚠️ 使用預設導向:', redirectUrl);
+                    }
+                } else {
+                    console.warn('⚠️ 沒有 state 參數');
+                    console.log('使用預設導向:', redirectUrl);
                 }
 
-                // 3. 用 code 換取 access token
-                updateStatus('正在取得 access token...');
-                addLog('📡 呼叫 LINE Token API...', 'info');
-
+                // 3. 取得 Access Token
+                updateStatus('正在取得 Access Token...');
+                
                 const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
                     method: 'POST',
                     headers: {
@@ -257,178 +168,86 @@
                     body: new URLSearchParams({
                         grant_type: 'authorization_code',
                         code: code,
-                        redirect_uri: 'https://guimashen.vercel.app/auth/callback',
-                        client_id: LINE_CHANNEL_ID,
-                        client_secret: LINE_CHANNEL_SECRET
+                        redirect_uri: REDIRECT_URI,
+                        client_id: LINE_LOGIN_CHANNEL_ID,
+                        client_secret: LINE_LOGIN_CHANNEL_SECRET
                     })
                 });
 
-                addLog(`Token API 回應: ${tokenResponse.status} ${tokenResponse.statusText}`, 
-                       tokenResponse.ok ? 'success' : 'error');
-
                 if (!tokenResponse.ok) {
                     const errorText = await tokenResponse.text();
-                    addLog(`❌ Token API 錯誤內容: ${errorText}`, 'error');
-                    throw new Error(`取得 token 失敗 (${tokenResponse.status})\n${errorText}`);
+                    console.error('Token 錯誤:', errorText);
+                    throw new Error(`取得 Token 失敗: ${tokenResponse.status}`);
                 }
 
                 const tokenData = await tokenResponse.json();
-                const accessToken = tokenData.access_token;
-                addLog('✅ Access token 取得成功', 'success');
+                console.log('✓ Access Token 取得成功');
 
-                // 4. 用 access token 取得使用者資料
+                // 4. 取得使用者資料
                 updateStatus('正在取得使用者資料...');
-                addLog('📡 呼叫 LINE Profile API...', 'info');
 
                 const profileResponse = await fetch('https://api.line.me/v2/profile', {
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`
+                        'Authorization': `Bearer ${tokenData.access_token}`
                     }
                 });
 
-                addLog(`Profile API 回應: ${profileResponse.status} ${profileResponse.statusText}`,
-                       profileResponse.ok ? 'success' : 'error');
-
                 if (!profileResponse.ok) {
-                    const errorText = await profileResponse.text();
-                    addLog(`❌ Profile API 錯誤內容: ${errorText}`, 'error');
-                    throw new Error(`取得使用者資料失敗 (${profileResponse.status})\n${errorText}`);
+                    throw new Error(`取得使用者資料失敗: ${profileResponse.status}`);
                 }
 
                 const profile = await profileResponse.json();
-                addLog(`✅ 使用者資料: ${JSON.stringify(profile)}`, 'success');
+                console.log('✓ 使用者資料取得成功');
+                console.log('  - userId:', profile.userId);
+                console.log('  - displayName:', profile.displayName);
 
-
-
-
-
-
-
-
-                
-                
-                // 5. 儲存到 localStorage（強化版 - 確保真的存進去）
-updateStatus('正在儲存登入資訊...');
-addLog('💾 正在儲存登入資訊到 localStorage...', 'info');
-
-try {
-    // 先清除可能的舊資料
-    console.log('清除舊的 localStorage 資料...');
-    localStorage.removeItem('line_user_id');
-    localStorage.removeItem('line_display_name');
-    localStorage.removeItem('line_picture_url');
-    
-    // 儲存新資料
-    console.log('儲存新的登入資料...');
-    localStorage.setItem('line_user_id', profile.userId);
-    localStorage.setItem('line_display_name', profile.displayName);
-    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
-    localStorage.setItem('line_login_timestamp', Date.now().toString());
-    
-    // 立即讀取驗證
-    const saved_userId = localStorage.getItem('line_user_id');
-    const saved_displayName = localStorage.getItem('line_display_name');
-    const saved_pictureUrl = localStorage.getItem('line_picture_url');
-    const saved_timestamp = localStorage.getItem('line_login_timestamp');
-    
-    console.log('驗證儲存結果:', {
-        userId: saved_userId ? '✓' : '✗',
-        displayName: saved_displayName ? '✓' : '✗',
-        pictureUrl: saved_pictureUrl ? '✓' : '✗',
-        timestamp: saved_timestamp ? '✓' : '✗'
-    });
-    
-    addLog('✅ localStorage 寫入驗證:', 'info');
-    addLog(`  User ID: ${saved_userId ? '✓ 已儲存' : '✗ 失敗'}`, saved_userId ? 'success' : 'error');
-    addLog(`  名稱: ${saved_displayName || '✗ 失敗'}`, saved_displayName ? 'success' : 'error');
-    addLog(`  頭像: ${saved_pictureUrl ? '✓ 已儲存' : '(無)'}`, 'info');
-    addLog(`  時間戳: ${saved_timestamp ? '✓ 已儲存' : '✗ 失敗'}`, saved_timestamp ? 'success' : 'error');
-    
-    if (!saved_userId || !saved_displayName) {
-        throw new Error('localStorage 寫入驗證失敗！資料沒有正確儲存。');
-    }
-    
-    addLog('✅ 所有資料已成功儲存到 localStorage', 'success');
-    
-} catch (storageError) {
-    console.error('localStorage 錯誤:', storageError);
-    addLog(`❌ localStorage 儲存失敗: ${storageError.message}`, 'error');
-    addLog('⚠️ 可能的原因:', 'warning');
-    addLog('  1. 瀏覽器的隱私模式阻擋了 localStorage', 'warning');
-    addLog('  2. 瀏覽器設定不允許網站儲存資料', 'warning');
-    addLog('  3. 儲存空間已滿', 'warning');
-    
-    alert('登入資訊儲存失敗！\n\n可能原因：\n1. 瀏覽器隱私模式\n2. 儲存空間已滿\n\n請使用一般模式重試。');
-    throw storageError;
-}
-
-
-
-
-
-
-
-
-
-                
-                // 6. 儲存到 Firebase
-                updateStatus('正在同步資料...');
-                addLog('💾 儲存使用者資料到 Firebase...', 'info');
+                // 5. 儲存到 localStorage
+                updateStatus('正在儲存登入資訊...');
 
                 try {
-                    const userRef = doc(db, 'users', profile.userId);
-                    const userDoc = await getDoc(userRef);
-                    
-                    if (!userDoc.exists()) {
-                        // 新使用者，建立資料
-                        await setDoc(userRef, {
-                            userId: profile.userId,
-                            displayName: profile.displayName,
-                            pictureUrl: profile.pictureUrl || '',
-                            role: 'user',
-                            createdAt: new Date(),
-                            lastLoginAt: new Date()
-                        });
-                        addLog('✅ 新使用者資料已建立', 'success');
-                    } else {
-                        // 更新最後登入時間
-                        await setDoc(userRef, {
-                            lastLoginAt: new Date()
-                        }, { merge: true });
-                        addLog('✅ 使用者資料已更新', 'success');
+                    localStorage.setItem('line_user_id', profile.userId);
+                    localStorage.setItem('line_display_name', profile.displayName);
+                    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+                    localStorage.setItem('line_login_timestamp', Date.now().toString());
+
+                    console.log('✓ localStorage 儲存成功');
+
+                    // 驗證儲存
+                    const savedUserId = localStorage.getItem('line_user_id');
+                    const savedDisplayName = localStorage.getItem('line_display_name');
+
+                    console.log('驗證儲存結果:');
+                    console.log('  - line_user_id:', savedUserId);
+                    console.log('  - line_display_name:', savedDisplayName);
+
+                    if (savedUserId !== profile.userId) {
+                        throw new Error('localStorage 儲存驗證失敗');
                     }
-                } catch (firebaseError) {
-                    addLog(`⚠️ Firebase 儲存失敗: ${firebaseError.message}`, 'warning');
-                    // 不阻擋流程，繼續導向
+
+                    console.log('✓ 儲存驗證通過');
+
+                } catch (storageError) {
+                    console.error('localStorage 錯誤:', storageError);
+                    throw new Error('無法儲存登入資訊，請確認瀏覽器允許儲存資料');
                 }
 
-                // 7. 導向回原頁面
-                addLog('✅ 登入成功！準備導向...', 'success');
-                updateStatus('登入成功！正在返回...');
-                
+                // 6. 導回原頁面
+                updateStatus('登入成功！正在導回...');
+                console.log('=== 準備導向 ===');
+                console.log('目標網址:', redirectUrl);
+
                 setTimeout(() => {
-                    addLog(`🔗 導向: ${redirectUrl}`, 'info');
+                    console.log('執行導向...');
                     window.location.href = redirectUrl;
                 }, 1000);
 
             } catch (error) {
-                addLog(`❌ 處理失敗: ${error.message}`, 'error');
-                addLog(`錯誤堆疊: ${error.stack}`, 'error');
-
-                showError(
-                    '登入處理失敗',
-                    `錯誤訊息：${error.message}\n\n` +
-                    `請嘗試：\n` +
-                    `1. 返回簽到頁面重新登入\n` +
-                    `2. 檢查網路連線\n` +
-                    `3. 使用 Chrome 或 Safari 瀏覽器\n` +
-                    `4. 如果持續失敗，請聯絡管理員\n\n` +
-                    `請將上方的執行日誌截圖給管理員`
-                );
+                console.error('✗ 處理失敗:', error);
+                showError('登入失敗', error.message);
             }
         }
 
-        // 執行
+        // 執行 callback 處理
         handleCallback();
     </script>
 </body>
