@@ -1,246 +1,93 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>龜馬山QR Code+短網址產生器</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="url"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        #result {
-            margin-top: 20px;
-            display: none; /* 初始隱藏結果 */
-        }
-        #qrCodeContainer {
-            text-align: center;
-            margin: 20px 0;
-        }
-        #shortUrlDisplay {
-            word-break: break-all;
-            font-size: 18px;
-            color: #007bff;
-        }
-        .copy-btn {
-            background-color: #007bff;
-            margin-top: 10px;
-        }
-        .copy-btn:hover {
-            background-color: #0056b3;
-        }
-        .error {
-            color: red;
-            margin-top: 10px;
-        }
-        /* 為 QR Code Canvas 添加邊框，方便觀察 */
-        #qrCodeCanvas {
-            border: 1px solid #ddd;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>龜馬山QR Code + 短網址 產生器</h1>
-        <p>輸入長網址，產生對應的 QR Code 和隨機短網址。</p>
-        <form id="urlForm">
-            <div class="form-group">
-                <label for="longUrl">請輸入長網址:</label>
-                <input type="url" id="longUrl" name="longUrl" placeholder="https://example.com" required>
-            </div>
-            <button type="submit">產生 QR Code & 短網址</button>
-        </form>
-        <div id="result">
-            <h2>結果</h2>
-            <div id="qrCodeContainer">
-                <canvas id="qrCodeCanvas"></canvas> <!-- 用 canvas 來繪製帶 Logo 的 QR Code -->
-            </div>
-            <p><strong>短網址:</strong> <span id="shortUrlDisplay"></span></p>
-            <button class="copy-btn" id="copyShortUrlBtn">複製短網址</button>
-        </div>
-        <div id="error" class="error"></div>
-    </div>
+// 呼叫後端 API 來產生短網址
+const response = await fetch('/api/generate-short-url', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ longUrl: longUrl }),
+});
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script>
-        document.getElementById('urlForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); // 阻止表單預設提交行為
+if (!response.ok) {
+  const errorData = await response.json();
+  throw new Error(errorData.error || '產生短網址失敗');
+}
 
-            const longUrl = document.getElementById('longUrl').value.trim();
-            const resultDiv = document.getElementById('result');
-            const errorDiv = document.getElementById('error');
-            const qrCodeContainer = document.getElementById('qrCodeContainer');
-            const shortUrlDisplay = document.getElementById('shortUrlDisplay');
-            const canvas = document.getElementById('qrCodeCanvas');
-            const ctx = canvas.getContext('2d');
+const data = await response.json();
+const shortUrl = data.shortUrl; // 從後端取得短網址
 
-            if (!longUrl) {
-                showError('請輸入網址');
-                return;
-            }
+// 清空之前的結果和錯誤
+errorDiv.textContent = '';
+qrCodeContainer.innerHTML = '';
+resultDiv.style.display = 'block';
 
-            // 清空之前的結果和錯誤
-            errorDiv.textContent = '';
-            qrCodeContainer.innerHTML = ''; // 清空容器
-            resultDiv.style.display = 'none';
+try {
+  // --- 生成帶有 Logo 的 QR Code ---
+  // 1. 建立一個隱藏的 div 來生成 QR Code
+  const hiddenDiv = document.createElement('div');
+  hiddenDiv.style.display = 'none';
+  document.body.appendChild(hiddenDiv);
 
-            try {
-                // 呼叫後端 API 來產生短網址
-                const response = await fetch('/api/generate-short-url', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ longUrl: longUrl }),
-                });
+  // 2. 使用 qrcode.js 生成 QR Code 到隱藏的 div
+  const qrCode = new QRCode(hiddenDiv, {
+    text: shortUrl,
+    width: 256,
+    height: 256,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || '產生短網址失敗');
-                }
+  // 3. 監聽 img 元素的 onload 事件
+  const img = hiddenDiv.querySelector('img');
+  if (img) {
+    img.onload = function() {
+      // 4. 設定 canvas 大小
+      canvas.width = 256;
+      canvas.height = 256;
 
-                const data = await response.json();
-                const shortUrl = data.shortUrl; // 從後端取得短網址
+      // 5. 將 QR Code 圖片畫到 canvas 上
+      ctx.drawImage(img, 0, 0);
 
-                // --- 生成帶有 Logo 的 QR Code ---
-                // 1. 建立一個隱藏的 div 來生成 QR Code (僅用來獲取點陣圖)
-                const hiddenDiv = document.createElement('div');
-                hiddenDiv.style.display = 'none'; // 隱藏它
-                document.body.appendChild(hiddenDiv);
+      // 6. 載入 Logo 圖片
+      const logoImg = new Image();
+      logoImg.src = 'logo.png'; // 假設 logo.png 放在 connection 資料夾下
 
-                // 2. 使用 qrcode.js 生成 QR Code 到隱藏的 div (設定高容錯率)
-                const qrCode = new QRCode(hiddenDiv, {
-                    text: shortUrl, // QR Code 包含短網址
-                    width: 256, // 設定 QR Code 大小
-                    height: 256,
-                    colorDark: "#000000", // QR Code 顏色
-                    colorLight: "#ffffff", // 背景顏色
-                    correctLevel: QRCode.CorrectLevel.H // **重要：設定高容錯率 H**
-                });
+      logoImg.onload = function() {
+        // 7. 計算 Logo 的大小和位置
+        const logoSize = Math.min(256, 256) * 0.2;
+        const x = (256 - logoSize) / 2;
+        const y = (256 - logoSize) / 2;
 
-                // 3. 等待 QR Code 生成完成後，再進行繪製
-                // qrcode.js 沒有直接的完成回調，我們使用一個小延遲或監聽 img.onload
-                // 這裡使用較簡單的 setTimeout，但更穩健的方式是監聽內部 img 的載入
-                setTimeout(() => {
-                    const qrCodeImg = hiddenDiv.querySelector('img');
-                    if (qrCodeImg) {
-                        // 4. 設定 canvas 大小
-                        canvas.width = 256;
-                        canvas.height = 256;
+        // 8. 將 Logo 畫到 canvas 上
+        ctx.drawImage(logoImg, x, y, logoSize, logoSize);
 
-                        // 5. 將 QR Code 圖片畫到 canvas 上
-                        ctx.drawImage(qrCodeImg, 0, 0);
+        // 9. 顯示結果區域
+        resultDiv.style.display = 'block';
 
-                        // 6. 載入 Logo 圖片
-                        const logoImg = new Image();
-                        // 請確保這個路徑是正確的 Logo 檔案路徑
-                        logoImg.src = 'logo.png'; // 假設 logo.png 放在 connection 資料夾下
+        // 10. 移除隱藏的 div
+        document.body.removeChild(hiddenDiv);
+      };
 
-                        logoImg.onload = function() {
-                            // 7. 計算 Logo 的大小和位置 (置中)
-                            const logoSize = Math.min(256, 256) * 0.2; // Logo 大小約為 QR Code 的 20%
-                            const x = (256 - logoSize) / 2;
-                            const y = (256 - logoSize) / 2;
+      logoImg.onerror = function() {
+        console.error('Logo 圖片載入失敗！');
+        // 如果 Logo 載入失敗，仍然顯示 QR Code
+        resultDiv.style.display = 'block';
+        document.body.removeChild(hiddenDiv);
+      };
+    };
 
-                            // 8. 將 Logo 畫到 canvas 上
-                            ctx.drawImage(logoImg, x, y, logoSize, logoSize);
+    img.onerror = function() {
+      console.error('QR Code 圖片生成失敗！');
+      showError('QR Code 生成失敗');
+      document.body.removeChild(hiddenDiv);
+    };
+  } else {
+    console.error('QR Code 圖片生成失敗！');
+    showError('QR Code 生成失敗');
+    document.body.removeChild(hiddenDiv);
+  }
 
-                            // 9. 顯示結果區域
-                            resultDiv.style.display = 'block';
-
-                            // 10. 移除隱藏的 div
-                            document.body.removeChild(hiddenDiv);
-                        };
-
-                        logoImg.onerror = function() {
-                            console.error('Logo 圖片載入失敗！');
-                            // 如果 Logo 載入失敗，仍然顯示 QR Code
-                            resultDiv.style.display = 'block';
-                            document.body.removeChild(hiddenDiv);
-                        };
-                    } else {
-                         console.error('QR Code 圖片生成失敗！');
-                         showError('QR Code 生成失敗');
-                         document.body.removeChild(hiddenDiv);
-                    }
-                }, 100); // 給一點時間讓 QR Code 生成 (毫秒)
-
-            } catch (err) {
-                console.error('Error:', err);
-                showError(err.message || '發生錯誤');
-            }
-        });
-
-        // 複製短網址功能
-        document.getElementById('copyShortUrlBtn').addEventListener('click', function() {
-            const shortUrl = document.getElementById('shortUrlDisplay').textContent;
-            if (shortUrl) {
-                navigator.clipboard.writeText(shortUrl)
-                    .then(() => {
-                        alert('短網址已複製到剪貼簿！');
-                    })
-                    .catch(err => {
-                        console.error('複製失敗', err);
-                        const textArea = document.createElement('textarea');
-                        textArea.value = shortUrl;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        try {
-                            document.execCommand('copy');
-                            alert('短網址已複製到剪貼簿！');
-                        } catch (err) {
-                            console.error('複製失敗', err);
-                            alert('複製失敗，請手動複製');
-                        }
-                        document.body.removeChild(textArea);
-                    });
-            }
-        });
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-        }
-    </script>
-</body>
-</html>
+} catch (err) {
+  console.error('Error:', err);
+  showError(err.message || '發生錯誤');
+}
