@@ -507,6 +507,122 @@
     </div>
 
     <script type="module">
+        // ==========================================
+        // LINE 登入檢查與處理
+        // ==========================================
+        const LINE_LOGIN_CHANNEL_ID = '2008269293';
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+
+        console.log('=== 使用者管理載入 ===');
+        console.log('當前頁面:', window.location.href);
+
+        // 檢查登入狀態
+        function checkLoginStatus() {
+            const lineUserId = localStorage.getItem('line_user_id');
+            const displayName = localStorage.getItem('line_display_name');
+
+            console.log('檢查登入狀態:');
+            console.log('  - line_user_id:', lineUserId ? '✓ 有' : '✗ 無');
+            console.log('  - line_display_name:', displayName ? '✓ 有' : '✗ 無');
+
+            if (!lineUserId || !displayName) {
+                console.log('❌ 未登入，顯示登入畫面');
+                showLoginScreen();
+                return false;
+            }
+
+            console.log('✓ 已登入:', displayName);
+            return true;
+        }
+
+        // 顯示登入畫面
+        function showLoginScreen() {
+            document.body.innerHTML = `
+                <div style="
+                    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 0;
+                    padding: 20px;
+                ">
+                    <div style="
+                        background: white;
+                        border-radius: 20px;
+                        padding: 40px 30px;
+                        max-width: 400px;
+                        width: 100%;
+                        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                        text-align: center;
+                    ">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🔐</div>
+                        <h1 style="color: #667eea; margin-bottom: 10px; font-size: 1.8rem;">使用者管理</h1>
+                        <p style="color: #666; margin-bottom: 30px; line-height: 1.6;">
+                            請先登入以存取管理功能
+                        </p>
+                        <button onclick="handleLineLogin()" style="
+                            width: 100%;
+                            padding: 15px;
+                            font-size: 1.1rem;
+                            font-weight: bold;
+                            border: none;
+                            border-radius: 10px;
+                            cursor: pointer;
+                            background: #00C300;
+                            color: white;
+                            transition: all 0.3s;
+                        " onmouseover="this.style.background='#00B000'" 
+                           onmouseout="this.style.background='#00C300'">
+                            使用 LINE 帳號登入
+                        </button>
+                        <p style="color: #999; font-size: 0.85rem; margin-top: 20px;">
+                            需要管理員權限
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // LINE 登入處理
+        window.handleLineLogin = function() {
+            const currentUrl = window.location.href;
+            
+            console.log('=== 開始 LINE 登入 ===');
+            console.log('當前頁面:', currentUrl);
+            
+            const state = JSON.stringify({
+                redirect: currentUrl
+            });
+            
+            console.log('State 資料:', state);
+            console.log('編碼後:', encodeURIComponent(state));
+
+            const authUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
+                `response_type=code` +
+                `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
+                `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+                `&state=${encodeURIComponent(state)}` +
+                `&scope=profile%20openid`;
+
+            console.log('導向 LINE 授權頁面...');
+            console.log('授權完成後將導回:', currentUrl);
+            
+            window.location.href = authUrl;
+        };
+
+        // 頁面載入時檢查登入
+        const isLoggedIn = checkLoginStatus();
+
+        if (!isLoggedIn) {
+            // 未登入，停止執行後續程式碼
+            console.log('⚠️ 未登入，停止載入管理後台');
+            throw new Error('需要登入');
+        }
+
+        console.log('✓ 登入驗證通過，繼續載入管理後台');
+
         // ═══════════════════════════════════════════════════════════════
         // 使用者管理
         // ═══════════════════════════════════════════════════════════════
@@ -516,12 +632,12 @@
 
         // Firebase 設定
         const firebaseConfig = {
-            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
+            apiKey: "AIzaSyDXz2YWlYTE5İ81YOBnPEHtJfUİMH4I4ZQ",
             authDomain: "checkin-29f7f.firebaseapp.com",
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.firebasestorage.app",
-            messagingSenderId: "698452461679",
-            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
+            messagingSenderId: "646505235940",
+            appId: "1:646505235940:web:eaa1e12d06da67bcb4ddf4"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -824,6 +940,7 @@
                 localStorage.removeItem('line_user_id');
                 localStorage.removeItem('line_display_name');
                 localStorage.removeItem('line_picture_url');
+                localStorage.removeItem('line_login_timestamp');
                 window.location.href = '/checkin/';
             }
         };
