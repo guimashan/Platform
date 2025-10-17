@@ -862,24 +862,39 @@ window.handleSubmit = async function(event) {
     }
 };
 
-        // ========== 刪除巡邏點 ==========
-        window.deletePatrol = async function(patrolId) {
-            const patrol = allPatrols.find(p => p.id === patrolId);
-            if (!patrol) return;
+// ========== 刪除巡邏點 (透過 API) ==========
+window.deletePatrol = async function(patrolId) {
+    const patrol = allPatrols.find(p => p.id === patrolId);
+    if (!patrol) return;
 
-            if (!confirm(`確定要刪除巡邏點「${patrol.name}」嗎？\n\n此操作無法復原！`)) {
-                return;
-            }
+    if (!confirm(`確定要刪除巡邏點「${patrol.name}」嗎？\n\n此操作無法復原！`)) {
+        return;
+    }
 
-            try {
-                await deleteDoc(doc(db, 'patrols', patrolId));
-                showMessage('巡邏點已刪除！', 'success');
-                await loadPatrols();
-            } catch (error) {
-                console.error('刪除失敗:', error);
-                showMessage('刪除失敗：' + error.message, 'error');
-            }
-        };
+    try {
+        const response = await fetch(PATROLS_API_URL, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                // 傳遞用戶 ID 以便在後端進行權限最終檢查
+                'X-User-ID': currentUser.userId 
+            },
+            body: JSON.stringify({ id: patrolId })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `API 刪除失敗 (狀態碼: ${response.status})`);
+        }
+
+        showMessage('巡邏點已刪除！', 'success');
+        await loadPatrols();
+        
+    } catch (error) {
+        console.error('刪除失敗:', error);
+        showMessage('刪除失敗：' + error.message, 'error');
+    }
+};
 
         // ========== 顯示 QR Code ==========
         window.showQRCode = function(patrolId) {
