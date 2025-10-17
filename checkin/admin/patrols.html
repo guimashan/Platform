@@ -589,25 +589,12 @@
 
         console.log('✓ 登入驗證通過，繼續載入管理後台');
 
-        // ═══════════════════════════════════════════════════════════════
-        // 巡邏點管理
-        // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// 巡邏點管理 - 透過後端 API 存取
+// ═══════════════════════════════════════════════════════════════
 
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
-        // Firebase 設定
-        const firebaseConfig = {
-            apiKey: "AIzaSyDXz2YWlYTE5İ81YOBnPEHtJfUİMH4I4ZQ",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.firebasestorage.app",
-            messagingSenderId: "646505235940",
-            appId: "1:646505235940:web:eaa1e12d06da67bcb4ddf4"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+const PATROLS_API_URL = '/api/patrols';
+const USERS_API_URL = '/api/users'; // 為了檢查管理員權限
 
         // 全域變數
         let allPatrols = [];
