@@ -3,8 +3,7 @@
 // 為了安全，我們使用 Serverless 環境變數來儲存密鑰
 const CHANNEL_ID = '2008269293'; // 您的 LINE Channel ID (已在前端暴露，但此處使用環境變數更佳)
 const CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET; // ⚠️ 必須設定在 Vercel 環境變數中！
-const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback'; // 您的回調 URL
-
+const REDIRECT_URI = 'https://guimashen.vercel.app/api/line-callback'; // ⚡️ 修改這裡！
 /**
  * 主要處理函式
  * 負責從 LINE 獲取 Access Token 和用戶資料
