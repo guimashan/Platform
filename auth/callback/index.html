@@ -84,12 +84,12 @@
     </div>
 
     <script type="module">
-        // 請將這邊的 CHANNEL_ID 換成你的 LINE Channel ID
+        // 請將這邊的 CHANNEL_ID 換成你的 LINE Channel ID (雖然前端不需要它來發送，但保留以防未來需要)
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        // 注意：不再在前端硬編碼 CHANNEL_SECRET
 
-        // 請確保這個 REDIRECT_URI 與你在 LINE Developer Console 中設定的完全一致（不含空格）
-        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback'; // 確保沒有空格
+        // 確保這個 REDIRECT_URI 與你在 LINE Developer Console 中設定的完全一致（不含空格）
+        // 也必須與前端發起 LINE 登入時使用的 URI 一致
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback'; // 確保沒有尾隨空格
 
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
@@ -111,131 +111,129 @@
             try {
                 console.log('=== LINE 登入 Callback 開始 ===');
 
-                // 1. 取得 URL 參數
+                // 1. 從瀏覽器網址列的 URL 參數中取得 'code' 和 'state'
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 const state = urlParams.get('state');
                 const error = urlParams.get('error');
 
-                console.log('URL 參數:');
+                console.log('從 URL 取得的參數:');
                 console.log('  - code:', code ? '✓ 有' : '✗ 無');
                 console.log('  - state:', state ? '✓ 有' : '✗ 無');
                 console.log('  - error:', error || '無');
 
-                // 檢查是否有錯誤
+                // 檢查是否有來自 LINE 的錯誤訊息
                 if (error) {
                     throw new Error(`LINE 授權失敗: ${error}`);
                 }
 
-                // 檢查是否有 code
+                // 檢查是否有授權碼 (code)
                 if (!code) {
-                    throw new Error('缺少授權碼 (code)');
+                    throw new Error('缺少授權碼 (code)。請確認是否正確從 LINE 登入頁面導回。');
                 }
 
-                // 2. 解析 state 取得原始頁面
-                let redirectUrl = '/checkin/'; // 預設導向
+                // 2. 解析 'state' 參數 (用來導回原本的頁面)
+                let redirectUrl = '/checkin/'; // 預設導向頁面
 
                 if (state) {
                     try {
-                        console.log('原始 state:', state);
-                        const decodedState = decodeURIComponent(state);
+                        console.log('原始 state 參數:', state);
+                        const decodedState = decodeURIComponent(state); // 解碼
                         console.log('解碼後 state:', decodedState);
 
-                        const stateData = JSON.parse(decodedState);
+                        const stateData = JSON.parse(decodedState); // 解析 JSON
                         console.log('解析後 state 資料:', stateData);
 
                         if (stateData.redirect) {
-                            redirectUrl = stateData.redirect;
-                            console.log('✓ 將導回:', redirectUrl);
+                            redirectUrl = stateData.redirect; // 如果 state 中有 redirect，使用它
+                            console.log('✓ 將導回指定頁面:', redirectUrl);
                         } else {
-                            console.warn('⚠️ state 中沒有 redirect 欄位');
+                            console.warn('⚠️ state 中沒有找到 redirect 欄位，使用預設頁面');
                         }
                     } catch (e) {
-                        console.error('✗ 無法解析 state:', e);
-                        console.error('State 內容:', state);
-                        console.log('⚠️ 使用預設導向:', redirectUrl);
+                        console.error('✗ 無法解析 state 參數:', e);
+                        console.log('使用預設導向頁面:', redirectUrl);
                     }
                 } else {
-                    console.warn('⚠️ 沒有 state 參數');
-                    console.log('使用預設導向:', redirectUrl);
+                    console.warn('⚠️ URL 中沒有 state 參數');
+                    console.log('使用預設導向頁面:', redirectUrl);
                 }
 
-                // 3. 發送 code 到你的後端 API 端點進行處理 (包含 token exchange 和 profile fetch)
-                updateStatus('正在驗證授權碼並取得使用者資訊...');
-                console.log('將授權碼發送到後端進行處理...');
+                // 3. 將授權碼 (code) 傳送給後端伺服器進行處理
+                updateStatus('正在向後端驗證授權碼...');
+                console.log('準備向後端 API 發送授權碼...');
 
-                // 發送 POST 請求到你的後端 API
-                const backendResponse = await fetch('/api/line/callback', { // 請確保此路徑正確
+                // 發送 POST 請求到你的後端 API 端點
+                // **重要：** 請根據你的後端部署位置修改這個 URL
+                // 如果後端跑在 http://localhost:3000，請改為 'http://localhost:3000/api/line/callback'
+                // 如果後端和前端部署在同一平台 (如 Vercel)，使用 '/api/line/callback' 即可
+                // 如果後端部署在其他地方，請填入完整的後端網址
+                const backendResponse = await fetch('/api/line/callback', { // <--- 請在此處修改 URL
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json', // 告訴後端我們傳送的是 JSON 格式
                     },
                     body: JSON.stringify({
-                        code: code,
-                        redirect_uri: REDIRECT_URI,
-                        client_id: LINE_LOGIN_CHANNEL_ID,
-                        // client_secret 不會在此處發送
+                        code: code,             // 將取得的授權碼傳給後端
+                        redirect_uri: REDIRECT_URI, // 傳送回傳網址給後端 (安全檢查用)
+                        client_id: LINE_LOGIN_CHANNEL_ID, // 傳送 Client ID 給後端 (安全檢查用)
+                        // 注意：沒有傳送 client_secret，它由後端安全地處理
                     })
                 });
 
+                // 檢查後端是否回傳了錯誤
                 if (!backendResponse.ok) {
                     const errorData = await backendResponse.json().catch(() => ({ error: '無法解析後端錯誤回應' }));
                     console.error('後端處理錯誤:', errorData);
                     throw new Error(`後端處理失敗: ${errorData.error || backendResponse.status}`);
                 }
 
+                // 如果後端處理成功，取得使用者資料
                 const { profile } = await backendResponse.json();
                 console.log('✓ 從後端取得使用者資料成功');
                 console.log('  - userId:', profile.userId);
                 console.log('  - displayName:', profile.displayName);
 
-                // 4. 儲存到 localStorage
+                // 4. 將使用者資料儲存到瀏覽器的 localStorage 中
                 updateStatus('正在儲存登入資訊...');
 
                 try {
                     localStorage.setItem('line_user_id', profile.userId);
                     localStorage.setItem('line_display_name', profile.displayName);
-                    localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+                    localStorage.setItem('line_picture_url', profile.pictureUrl || ''); // 如果沒有圖片 URL，存入空字串
                     localStorage.setItem('line_login_timestamp', Date.now().toString());
 
-                    console.log('✓ localStorage 儲存成功');
+                    console.log('✓ 使用者資訊已儲存到 localStorage');
 
-                    // 驗證儲存
+                    // 簡單驗證儲存是否成功
                     const savedUserId = localStorage.getItem('line_user_id');
-                    const savedDisplayName = localStorage.getItem('line_display_name');
-
-                    console.log('驗證儲存結果:');
-                    console.log('  - line_user_id:', savedUserId);
-                    console.log('  - line_display_name:', savedDisplayName);
-
                     if (savedUserId !== profile.userId) {
                         throw new Error('localStorage 儲存驗證失敗');
                     }
-
-                    console.log('✓ 儲存驗證通過');
+                    console.log('✓ localStorage 驗證通過');
 
                 } catch (storageError) {
                     console.error('localStorage 錯誤:', storageError);
-                    throw new Error('無法儲存登入資訊，請確認瀏覽器允許儲存資料');
+                    throw new Error('無法儲存登入資訊，請確認瀏覽器允許使用 localStorage');
                 }
 
-                // 5. 導回原頁面
+                // 5. 登入完成，導向回原本的頁面
                 updateStatus('登入成功！正在導回...');
-                console.log('=== 準備導向 ===');
-                console.log('目標網址:', redirectUrl);
+                console.log('準備導向目標頁面:', redirectUrl);
 
+                // 等待一秒後再導向，讓使用者看到成功訊息
                 setTimeout(() => {
-                    console.log('執行導向...');
+                    console.log('執行導向至:', redirectUrl);
                     window.location.href = redirectUrl;
                 }, 1000);
 
             } catch (error) {
-                console.error('✗ 處理失敗:', error);
-                showError('登入失敗', error.message);
+                console.error('✗ 處理過程中發生錯誤:', error);
+                showError('登入失敗', error.message || '發生未知錯誤');
             }
         }
 
-        // 執行 callback 處理
+        // 當頁面載入完成後，開始執行處理流程
         handleCallback();
     </script>
 </body>
