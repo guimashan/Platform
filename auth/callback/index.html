@@ -84,9 +84,12 @@
     </div>
 
     <script type="module">
-        const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        const LINE_LOGIN_CHANNEL_SECRET = '025a71a9799934c6ded8b0d6e930a125';
-        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+        // 請將這邊的 CHANNEL_ID 換成你的 LINE Channel ID
+        const LINE_LOGIN_CHANNEL_ID = 'YOUR_LINE_CHANNEL_ID_HERE';
+        // 注意：不再在前端硬編碼 CHANNEL_SECRET
+
+        // 請確保這個 REDIRECT_URI 與你在 LINE Developer Console 中設定的完全一致（不含空格）
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback'; // 確保沒有空格
 
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
@@ -137,10 +140,10 @@
                         console.log('原始 state:', state);
                         const decodedState = decodeURIComponent(state);
                         console.log('解碼後 state:', decodedState);
-                        
+
                         const stateData = JSON.parse(decodedState);
                         console.log('解析後 state 資料:', stateData);
-                        
+
                         if (stateData.redirect) {
                             redirectUrl = stateData.redirect;
                             console.log('✓ 將導回:', redirectUrl);
@@ -157,51 +160,36 @@
                     console.log('使用預設導向:', redirectUrl);
                 }
 
-                // 3. 取得 Access Token
-                updateStatus('正在取得 Access Token...');
-                
-                const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
+                // 3. 發送 code 到你的後端 API 端點進行處理 (包含 token exchange 和 profile fetch)
+                updateStatus('正在驗證授權碼並取得使用者資訊...');
+                console.log('將授權碼發送到後端進行處理...');
+
+                // 發送 POST 請求到你的後端 API
+                const backendResponse = await fetch('/api/line/callback', { // 請確保此路徑正確
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
+                        'Content-Type': 'application/json',
                     },
-                    body: new URLSearchParams({
-                        grant_type: 'authorization_code',
+                    body: JSON.stringify({
                         code: code,
                         redirect_uri: REDIRECT_URI,
                         client_id: LINE_LOGIN_CHANNEL_ID,
-                        client_secret: LINE_LOGIN_CHANNEL_SECRET
+                        // client_secret 不會在此處發送
                     })
                 });
 
-                if (!tokenResponse.ok) {
-                    const errorText = await tokenResponse.text();
-                    console.error('Token 錯誤:', errorText);
-                    throw new Error(`取得 Token 失敗: ${tokenResponse.status}`);
+                if (!backendResponse.ok) {
+                    const errorData = await backendResponse.json().catch(() => ({ error: '無法解析後端錯誤回應' }));
+                    console.error('後端處理錯誤:', errorData);
+                    throw new Error(`後端處理失敗: ${errorData.error || backendResponse.status}`);
                 }
 
-                const tokenData = await tokenResponse.json();
-                console.log('✓ Access Token 取得成功');
-
-                // 4. 取得使用者資料
-                updateStatus('正在取得使用者資料...');
-
-                const profileResponse = await fetch('https://api.line.me/v2/profile', {
-                    headers: {
-                        'Authorization': `Bearer ${tokenData.access_token}`
-                    }
-                });
-
-                if (!profileResponse.ok) {
-                    throw new Error(`取得使用者資料失敗: ${profileResponse.status}`);
-                }
-
-                const profile = await profileResponse.json();
-                console.log('✓ 使用者資料取得成功');
+                const { profile } = await backendResponse.json();
+                console.log('✓ 從後端取得使用者資料成功');
                 console.log('  - userId:', profile.userId);
                 console.log('  - displayName:', profile.displayName);
 
-                // 5. 儲存到 localStorage
+                // 4. 儲存到 localStorage
                 updateStatus('正在儲存登入資訊...');
 
                 try {
@@ -231,7 +219,7 @@
                     throw new Error('無法儲存登入資訊，請確認瀏覽器允許儲存資料');
                 }
 
-                // 6. 導回原頁面
+                // 5. 導回原頁面
                 updateStatus('登入成功！正在導回...');
                 console.log('=== 準備導向 ===');
                 console.log('目標網址:', redirectUrl);
