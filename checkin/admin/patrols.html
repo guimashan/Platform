@@ -614,104 +614,118 @@ const USERS_API_URL = '/api/users'; // 為了檢查管理員權限
             }, 5000);
         }
 
-        // ========== 初始化 ==========
-        async function init() {
-            try {
-                console.log('開始初始化...');
+// ========== 初始化 ==========
+async function init() {
+    try {
+        console.log('開始初始化...');
 
-                // 檢查登入狀態
-                const lineUserId = localStorage.getItem('line_user_id');
-                const displayName = localStorage.getItem('line_display_name');
-                const pictureUrl = localStorage.getItem('line_picture_url');
+        // 1. 從 localStorage 獲取登入資訊
+        const lineUserId = localStorage.getItem('line_user_id');
+        const displayName = localStorage.getItem('line_display_name');
+        const pictureUrl = localStorage.getItem('line_picture_url');
 
-                if (!lineUserId) {
-                    alert('請先登入！');
-                    window.location.href = '/checkin/';
-                    return;
-                }
-
-                currentUser = {
-                    userId: lineUserId,
-                    displayName: displayName || '未知使用者',
-                    pictureUrl: pictureUrl || ''
-                };
-
-                // 顯示使用者資訊
-                document.getElementById('user-name').textContent = currentUser.displayName;
-                if (currentUser.pictureUrl) {
-                    document.getElementById('user-avatar').src = currentUser.pictureUrl;
-                }
-
-                // 檢查權限
-                const userDoc = await getDoc(doc(db, 'users', lineUserId));
-                
-                if (!userDoc.exists()) {
-                    alert('找不到使用者資料！');
-                    window.location.href = '/checkin/';
-                    return;
-                }
-
-                const role = userDoc.data().role || 'user';
-                
-                // admin, superadmin 可以管理巡邏點
-                if (!['admin', 'superadmin'].includes(role)) {
-                    alert('您沒有權限訪問此頁面！\n\n需要：管理者以上權限');
-                    window.location.href = '/checkin/admin/';
-                    return;
-                }
-
-                // 載入巡邏點
-                await loadPatrols();
-
-                console.log('初始化完成');
-
-            } catch (error) {
-                console.error('初始化失敗:', error);
-                showMessage('系統初始化失敗：' + error.message, 'error');
-            }
+        if (!lineUserId) {
+            alert('請先登入！');
+            window.location.href = '/checkin/';
+            return;
         }
 
-        // ========== 載入巡邏點 ==========
-        async function loadPatrols() {
-            try {
-                console.log('載入巡邏點...');
-                
-                const querySnapshot = await getDocs(collection(db, 'patrols'));
-                
-                allPatrols = [];
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    allPatrols.push({
-                        id: docSnap.id,
-                        name: data.name || docSnap.id,
-                        lat: data.lat || 0,
-                        lng: data.lng || 0,
-                        tolerance: data.tolerance || 50
-                    });
-                });
+        currentUser = {
+            userId: lineUserId,
+            displayName: displayName || '未知使用者',
+            pictureUrl: pictureUrl || ''
+        };
 
-                // 按名稱排序
-                allPatrols.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
-
-                console.log('載入的巡邏點數:', allPatrols.length);
-
-                renderPatrols();
-
-            } catch (error) {
-                console.error('載入巡邏點失敗:', error);
-                showMessage('載入巡邏點失敗：' + error.message, 'error');
-                
-                document.getElementById('loading').innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">❌</div>
-                        <h3>載入失敗</h3>
-                        <p>${error.message}</p>
-                        <br>
-                        <button class="btn btn-primary" onclick="location.reload()">重試</button>
-                    </div>
-                `;
-            }
+        // 顯示使用者資訊
+        document.getElementById('user-name').textContent = currentUser.displayName;
+        if (currentUser.pictureUrl) {
+            document.getElementById('user-avatar').src = currentUser.pictureUrl;
         }
+
+        // 2. 檢查權限 (透過新的 API)
+        console.log('透過 API 檢查使用者權限...');
+        const userResponse = await fetch(`${USERS_API_URL}?userId=${lineUserId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!userResponse.ok) {
+            throw new Error('無法取得使用者資訊或權限！');
+        }
+
+        const userData = await userResponse.json();
+        const role = userData.role || 'user';
+        
+        // admin, superadmin 可以管理巡邏點
+        if (!['admin', 'superadmin'].includes(role)) {
+            alert('您沒有權限訪問此頁面！\n\n需要：管理者以上權限');
+            window.location.href = '/checkin/admin/index.html'; // 導向簽到記錄頁
+            return;
+        }
+        
+        console.log('✓ 權限驗證通過 (角色: ' + role + ')');
+
+        // 載入巡邏點
+        await loadPatrols();
+
+        console.log('初始化完成');
+
+    } catch (error) {
+        console.error('初始化失敗:', error);
+        showMessage('系統初始化失敗：' + error.message, 'error');
+        
+        // 在錯誤時顯示登入畫面或錯誤訊息
+        if (error.message.includes('登入')) {
+            showLoginScreen();
+        }
+    }
+}
+
+// ========== 載入巡邏點 (透過 API) ==========
+async function loadPatrols() {
+    try {
+        console.log('載入巡邏點 (透過 API)...');
+        
+        const response = await fetch(PATROLS_API_URL, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `無法從伺服器取得資料 (狀態碼: ${response.status})`);
+        }
+        
+        const data = await response.json();
+        
+        allPatrols = data.patrols || [];
+
+        // 按名稱排序
+        allPatrols.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+
+        console.log('載入的巡邏點數:', allPatrols.length);
+
+        renderPatrols();
+
+    } catch (error) {
+        console.error('載入巡邏點失敗:', error);
+        showMessage('載入巡邏點失敗：' + error.message, 'error');
+        
+        document.getElementById('loading').innerHTML = `
+            <div class="empty-state">
+                <div class="icon">❌</div>
+                <h3>載入失敗</h3>
+                <p>${error.message}</p>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">重試</button>
+            </div>
+        `;
+    }
+}
 
         // ========== 渲染巡邏點 ==========
         function renderPatrols() {
@@ -793,49 +807,60 @@ const USERS_API_URL = '/api/users'; // 為了檢查管理員權限
             editingPatrolId = null;
         };
 
-        // ========== 提交表單 ==========
-        window.handleSubmit = async function(event) {
-            event.preventDefault();
+// ========== 提交表單 (透過 API) ==========
+window.handleSubmit = async function(event) {
+    event.preventDefault();
 
-            const name = document.getElementById('patrol-name').value.trim();
-            const lat = parseFloat(document.getElementById('patrol-lat').value);
-            const lng = parseFloat(document.getElementById('patrol-lng').value);
-            const tolerance = parseInt(document.getElementById('patrol-tolerance').value);
+    const name = document.getElementById('patrol-name').value.trim();
+    const lat = parseFloat(document.getElementById('patrol-lat').value);
+    const lng = parseFloat(document.getElementById('patrol-lng').value);
+    const tolerance = parseInt(document.getElementById('patrol-tolerance').value);
 
-            if (!name || isNaN(lat) || isNaN(lng) || isNaN(tolerance)) {
-                showMessage('請填寫所有必填欄位！', 'error');
-                return;
-            }
+    if (!name || isNaN(lat) || isNaN(lng) || isNaN(tolerance)) {
+        showMessage('請填寫所有必填欄位！', 'error');
+        return;
+    }
 
-            const submitBtn = document.getElementById('submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = '儲存中...';
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '儲存中...';
 
-            try {
-                const patrolData = {
-                    name: name,
-                    lat: lat,
-                    lng: lng,
-                    tolerance: tolerance,
-                    updatedAt: new Date()
-                };
-
-                // 使用名稱作為文件 ID（編輯時保持原 ID）
-                const docId = editingPatrolId || name;
-                await setDoc(doc(db, 'patrols', docId), patrolData, { merge: true });
-
-                showMessage(editingPatrolId ? '巡邏點已更新！' : '巡邏點已新增！', 'success');
-                closeModal();
-                await loadPatrols();
-
-            } catch (error) {
-                console.error('儲存失敗:', error);
-                showMessage('儲存失敗：' + error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '儲存';
-            }
+    try {
+        const patrolData = {
+            id: editingPatrolId, // 如果是編輯，則包含 ID
+            name: name,
+            lat: lat,
+            lng: lng,
+            tolerance: tolerance,
         };
+
+        const response = await fetch(PATROLS_API_URL, {
+            method: editingPatrolId ? 'PUT' : 'POST', // 編輯用 PUT，新增用 POST
+            headers: {
+                'Content-Type': 'application/json',
+                // 傳遞用戶 ID 以便在後端進行權限最終檢查
+                'X-User-ID': currentUser.userId 
+            },
+            body: JSON.stringify(patrolData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `API 操作失敗 (狀態碼: ${response.status})`);
+        }
+
+        showMessage(editingPatrolId ? '巡邏點已更新！' : '巡邏點已新增！', 'success');
+        closeModal();
+        await loadPatrols();
+
+    } catch (error) {
+        console.error('儲存失敗:', error);
+        showMessage('儲存失敗：' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '儲存';
+    }
+};
 
         // ========== 刪除巡邏點 ==========
         window.deletePatrol = async function(patrolId) {
