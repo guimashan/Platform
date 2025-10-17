@@ -90,6 +90,7 @@
         
         // 🔧 修正：動態取得當前網址，確保與 LINE 授權時一致
         const REDIRECT_URI = window.location.origin + window.location.pathname;
+        console.log('動態 REDIRECT_URI:', REDIRECT_URI);
 
         function updateStatus(message) {
             document.getElementById('status').textContent = message;
