@@ -14,7 +14,7 @@ const SYSTEM_CONFIG = {
   
   // LINE Messaging API Channel Access Token (用於 Webhook)
   // 注意：這個要去 LINE Developers 複製
-  LINE_CHANNEL_ACCESS_TOKEN: '', // 稍後填入
+  LINE_CHANNEL_ACCESS_TOKEN: 'n7wiuS/DujgqbzQs1r5FNbci6JgZyHiekZ/JUxTus2jc68Q4VsXTmtdWmvXzKLlsDQf0sAqh1H50OAK7pqTukADagJKz9EbT/yNlXwdR/XwNTCOJNQUZ0oCZdNw3qSqWWfe9uTItKtzBltFg0IIL4QdB04t89/1O/w1cDnyilFU=', // 稍後填入
   
   // 版本資訊
   VERSION: '1.0.0',
