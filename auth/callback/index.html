@@ -5,73 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LINE 登入處理中...</title>
     <style>
-        body {
-            font-family: 'Microsoft JhengHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0;
-        }
-
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 400px;
-        }
-
-        .logo {
-            font-size: 4rem;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: #667eea;
-            margin-bottom: 20px;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .status {
-            color: #666;
-            font-size: 0.9rem;
-            margin-top: 15px;
-        }
-
-        .error {
-            background: #ffebee;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #f44336;
-            margin-top: 20px;
-        }
-
-        .error h2 {
-            color: #c62828;
-            margin-bottom: 10px;
-        }
-
-        .error p {
-            color: #666;
-            line-height: 1.6;
-        }
+        body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; margin: 0; }
+        .container { background: white; border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 400px; }
+        .logo { font-size: 4rem; margin-bottom: 20px; }
+        h1 { color: #667eea; margin-bottom: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status { color: #666; font-size: 0.9rem; margin-top: 15px; }
+        .error { background: #ffebee; padding: 20px; border-radius: 10px; border-left: 4px solid #f44336; margin-top: 20px; }
+        .error h2 { color: #c62828; margin-bottom: 10px; }
+        .error p { color: #666; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -84,156 +27,58 @@
     </div>
 
     <script type="module">
-        // 請將這邊的 CHANNEL_ID 換成你的 LINE Channel ID (雖然前端不需要它來發送，但保留以防未來需要)
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
+        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
 
-        // 確保這個 REDIRECT_URI 與你在 LINE Developer Console 中設定的完全一致（不含空格）
-        // 也必須與前端發起 LINE 登入時使用的 URI 一致
-        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback'; // 確保沒有尾隨空格
-
-        function updateStatus(message) {
-            document.getElementById('status').textContent = message;
-            console.log('[STATUS]', message);
-        }
-
-        function showError(title, message) {
-            document.querySelector('.spinner').style.display = 'none';
-            document.getElementById('error').style.display = 'block';
-            document.getElementById('error').innerHTML = `
-                <div class="error">
-                    <h2>❌ ${title}</h2>
-                    <p>${message}</p>
-                </div>
-            `;
-        }
+        function updateStatus(message) { document.getElementById('status').textContent = message; }
+        function showError(title, message) { document.querySelector('.spinner').style.display = 'none'; document.getElementById('error').style.display = 'block'; document.getElementById('error').innerHTML = `<div class="error"><h2>❌ ${title}</h2><p>${message}</p></div>`; }
 
         async function handleCallback() {
             try {
-                console.log('=== LINE 登入 Callback 開始 ===');
-
-                // 1. 從瀏覽器網址列的 URL 參數中取得 'code' 和 'state'
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 const state = urlParams.get('state');
                 const error = urlParams.get('error');
 
-                console.log('從 URL 取得的參數:');
-                console.log('  - code:', code ? '✓ 有' : '✗ 無');
-                console.log('  - state:', state ? '✓ 有' : '✗ 無');
-                console.log('  - error:', error || '無');
+                if (error) throw new Error(`LINE 授權失敗: ${error}`);
+                if (!code) throw new Error('缺少授權碼 (code)');
 
-                // 檢查是否有來自 LINE 的錯誤訊息
-                if (error) {
-                    throw new Error(`LINE 授權失敗: ${error}`);
-                }
-
-                // 檢查是否有授權碼 (code)
-                if (!code) {
-                    throw new Error('缺少授權碼 (code)。請確認是否正確從 LINE 登入頁面導回。');
-                }
-
-                // 2. 解析 'state' 參數 (用來導回原本的頁面)
-                let redirectUrl = '/checkin/'; // 預設導向頁面
-
+                let redirectUrl = '/checkin/';
                 if (state) {
                     try {
-                        console.log('原始 state 參數:', state);
-                        const decodedState = decodeURIComponent(state); // 解碼
-                        console.log('解碼後 state:', decodedState);
-
-                        const stateData = JSON.parse(decodedState); // 解析 JSON
-                        console.log('解析後 state 資料:', stateData);
-
-                        if (stateData.redirect) {
-                            redirectUrl = stateData.redirect; // 如果 state 中有 redirect，使用它
-                            console.log('✓ 將導回指定頁面:', redirectUrl);
-                        } else {
-                            console.warn('⚠️ state 中沒有找到 redirect 欄位，使用預設頁面');
-                        }
-                    } catch (e) {
-                        console.error('✗ 無法解析 state 參數:', e);
-                        console.log('使用預設導向頁面:', redirectUrl);
-                    }
-                } else {
-                    console.warn('⚠️ URL 中沒有 state 參數');
-                    console.log('使用預設導向頁面:', redirectUrl);
+                        const stateData = JSON.parse(decodeURIComponent(state));
+                        if (stateData.redirect) redirectUrl = stateData.redirect;
+                    } catch (e) { console.error('無法解析 state:', e); }
                 }
 
-                // 3. 將授權碼 (code) 傳送給後端伺服器進行處理
                 updateStatus('正在向後端驗證授權碼...');
-                console.log('準備向後端 API 發送授權碼...');
-
-                // 發送 POST 請求到你的後端 API 端點
-                // **重要：** 請根據你的後端部署位置修改這個 URL
-                // 如果後端跑在 http://localhost:3000，請改為 'http://localhost:3000/api/line/callback'
-                // 如果後端和前端部署在同一平台 (如 Vercel)，使用 '/api/line/callback' 即可
-                // 如果後端部署在其他地方，請填入完整的後端網址
-                const backendResponse = await fetch('/api/line/callback', { // <--- 請在此處修改 URL
+                const backendResponse = await fetch('/api/line/callback', { // <--- 修改這裡的 URL
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json', // 告訴後端我們傳送的是 JSON 格式
-                    },
-                    body: JSON.stringify({
-                        code: code,             // 將取得的授權碼傳給後端
-                        redirect_uri: REDIRECT_URI, // 傳送回傳網址給後端 (安全檢查用)
-                        client_id: LINE_LOGIN_CHANNEL_ID, // 傳送 Client ID 給後端 (安全檢查用)
-                        // 注意：沒有傳送 client_secret，它由後端安全地處理
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, redirect_uri: REDIRECT_URI, client_id: LINE_LOGIN_CHANNEL_ID })
                 });
 
-                // 檢查後端是否回傳了錯誤
                 if (!backendResponse.ok) {
                     const errorData = await backendResponse.json().catch(() => ({ error: '無法解析後端錯誤回應' }));
-                    console.error('後端處理錯誤:', errorData);
                     throw new Error(`後端處理失敗: ${errorData.error || backendResponse.status}`);
                 }
 
-                // 如果後端處理成功，取得使用者資料
                 const { profile } = await backendResponse.json();
-                console.log('✓ 從後端取得使用者資料成功');
-                console.log('  - userId:', profile.userId);
-                console.log('  - displayName:', profile.displayName);
 
-                // 4. 將使用者資料儲存到瀏覽器的 localStorage 中
-                updateStatus('正在儲存登入資訊...');
+                localStorage.setItem('line_user_id', profile.userId);
+                localStorage.setItem('line_display_name', profile.displayName);
+                localStorage.setItem('line_picture_url', profile.pictureUrl || '');
+                localStorage.setItem('line_login_timestamp', Date.now().toString());
 
-                try {
-                    localStorage.setItem('line_user_id', profile.userId);
-                    localStorage.setItem('line_display_name', profile.displayName);
-                    localStorage.setItem('line_picture_url', profile.pictureUrl || ''); // 如果沒有圖片 URL，存入空字串
-                    localStorage.setItem('line_login_timestamp', Date.now().toString());
-
-                    console.log('✓ 使用者資訊已儲存到 localStorage');
-
-                    // 簡單驗證儲存是否成功
-                    const savedUserId = localStorage.getItem('line_user_id');
-                    if (savedUserId !== profile.userId) {
-                        throw new Error('localStorage 儲存驗證失敗');
-                    }
-                    console.log('✓ localStorage 驗證通過');
-
-                } catch (storageError) {
-                    console.error('localStorage 錯誤:', storageError);
-                    throw new Error('無法儲存登入資訊，請確認瀏覽器允許使用 localStorage');
-                }
-
-                // 5. 登入完成，導向回原本的頁面
                 updateStatus('登入成功！正在導回...');
-                console.log('準備導向目標頁面:', redirectUrl);
-
-                // 等待一秒後再導向，讓使用者看到成功訊息
-                setTimeout(() => {
-                    console.log('執行導向至:', redirectUrl);
-                    window.location.href = redirectUrl;
-                }, 1000);
+                setTimeout(() => { window.location.href = redirectUrl; }, 1000);
 
             } catch (error) {
-                console.error('✗ 處理過程中發生錯誤:', error);
-                showError('登入失敗', error.message || '發生未知錯誤');
+                console.error('處理失敗:', error);
+                showError('登入失敗', error.message);
             }
         }
 
-        // 當頁面載入完成後，開始執行處理流程
         handleCallback();
     </script>
 </body>
