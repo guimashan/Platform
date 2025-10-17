@@ -1,18 +1,15 @@
-// 導入 node-fetch 用於發送 HTTP 請求
-import fetch from 'node-fetch';
+// api/line-callback.js
+import fetch from 'node-fetch'; // 如果您使用的是 Vercel Edge Functions，可能需要配置 fetch 
 
-// ❗ 安全地從 Vercel 環境變數讀取秘密
+// 从 Vercel 环境变数安全读取
 const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID;
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
-// Vercel Serverless 函式入口點
 export default async (req, res) => {
-    // 1. 僅處理 POST 請求 (更安全)
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
 
-    // 2. 從前端請求中取得 code 和 redirect_uri
     const { code, redirect_uri } = req.body;
 
     if (!code || !redirect_uri) {
@@ -20,13 +17,13 @@ export default async (req, res) => {
     }
 
     try {
-        // --- A. 請求 Access Token (Token 交換) ---
+        // A. 請求 Access Token (在後端安全執行)
         const tokenRequestBody = new URLSearchParams({
             grant_type: 'authorization_code',
             code: code,
             redirect_uri: redirect_uri,
             client_id: LINE_CHANNEL_ID,
-            client_secret: LINE_CHANNEL_SECRET, // ❗ 在後端安全地使用秘密
+            client_secret: LINE_CHANNEL_SECRET, // ❗ 安全使用
         });
 
         const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
@@ -37,9 +34,7 @@ export default async (req, res) => {
 
         if (!tokenResponse.ok) {
             const errorData = await tokenResponse.json();
-            console.error('LINE Token Error:', errorData);
-            // 由於 400 錯誤是來自 LINE 的，我們直接返回給前端
-            return res.status(400).json({
+            return res.status(tokenResponse.status).json({
                 error: 'Token Exchange Failed',
                 details: errorData.error_description || errorData.error || 'Unknown LINE error',
             });
@@ -48,18 +43,14 @@ export default async (req, res) => {
         const tokenData = await tokenResponse.json();
         const { access_token } = tokenData;
 
-        // --- B. 請求使用者 Profile ---
+        // B. 請求使用者 Profile
         const profileResponse = await fetch('https://api.line.me/v2/profile', {
             headers: { 'Authorization': `Bearer ${access_token}` },
         });
-
-        if (!profileResponse.ok) {
-             return res.status(500).json({ error: 'Failed to get user profile' });
-        }
-
+        
         const profile = await profileResponse.json();
 
-        // 3. 成功：將 LINE 的資料回傳給前端
+        // C. 將成功結果回傳前端
         res.status(200).json({
             success: true,
             user: {
@@ -67,8 +58,7 @@ export default async (req, res) => {
                 displayName: profile.displayName,
                 pictureUrl: profile.pictureUrl,
             },
-            // ⚠️ 建議不要將 Access Token 直接傳回前端，但為了簡化流程，您可以先傳回
-            accessToken: access_token 
+            accessToken: access_token // 傳回 token，但請注意安全
         });
 
     } catch (error) {
