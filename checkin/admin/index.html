@@ -322,7 +322,7 @@
         // LINE 登入檢查與處理
         // ==========================================
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+        const REDIRECT_URI = 'https://guimashen.vercel.app/api/line-callback';
 
         console.log('=== 管理後台載入 ===');
         console.log('當前頁面:', window.location.href);
@@ -427,10 +427,11 @@
         const isLoggedIn = checkLoginStatus();
 
         if (!isLoggedIn) {
-            // 未登入，停止執行後續程式碼
-            console.log('⚠️ 未登入，停止載入管理後台');
-            throw new Error('需要登入');
-        }
+    // 未登入，停止執行後續程式碼
+    console.log('⚠️ 未登入，停止載入管理後台');
+    // throw new Error('需要登入'); // <-- 移除錯誤拋出
+    return; // 使用 return 語句來停止執行後續的管理介面載入邏輯
+}
 
         console.log('✓ 登入驗證通過，繼續載入管理後台');
 
