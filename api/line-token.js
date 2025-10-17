@@ -1,85 +1,78 @@
-// /api/line-token.js
-// Vercel API Route 處理 LINE Login Token 交換
+// 導入 node-fetch 用於發送 HTTP 請求
+import fetch from 'node-fetch';
 
-export default async function handler(req, res) {
-  // 設定 CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// ❗ 安全地從 Vercel 環境變數讀取秘密
+const LINE_CHANNEL_ID = process.env.LINE_CHANNEL_ID;
+const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET;
 
-  // 處理 OPTIONS 請求 (預檢請求)
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // 只接受 POST 請求
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const { code } = req.body;
-    
-    if (!code) {
-      return res.status(400).json({ error: 'Authorization code is required' });
+// Vercel Serverless 函式入口點
+export default async (req, res) => {
+    // 1. 僅處理 POST 請求 (更安全)
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
     }
 
-    // 從環境變數取得 LINE 應用程式資訊
-    const CLIENT_ID = process.env.LINE_CLIENT_ID;
-    const CLIENT_SECRET = process.env.LINE_CLIENT_SECRET;
-    const REDIRECT_URI = process.env.LINE_REDIRECT_URI || 'https://guimashen.vercel.app/auth/callback';
+    // 2. 從前端請求中取得 code 和 redirect_uri
+    const { code, redirect_uri } = req.body;
 
-    // 準備請求參數
-    const params = new URLSearchParams();
-    params.append('grant_type', 'authorization_code');
-    params.append('code', code);
-    params.append('redirect_uri', REDIRECT_URI);
-    params.append('client_id', CLIENT_ID);
-    params.append('client_secret', CLIENT_SECRET);
-
-    // 向 LINE API 請求 access token
-    const response = await fetch('https://api.line.me/oauth2/v2.1/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('LINE API Error:', data);
-      return res.status(response.status).json({
-        error: 'Failed to get access token',
-        details: data
-      });
+    if (!code || !redirect_uri) {
+        return res.status(400).json({ error: 'Missing code or redirect_uri' });
     }
 
-    // 使用 access token 取得使用者資料
-    const profileResponse = await fetch('https://api.line.me/v2/profile', {
-      headers: {
-        'Authorization': `Bearer ${data.access_token}`
-      }
-    });
+    try {
+        // --- A. 請求 Access Token (Token 交換) ---
+        const tokenRequestBody = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirect_uri,
+            client_id: LINE_CHANNEL_ID,
+            client_secret: LINE_CHANNEL_SECRET, // ❗ 在後端安全地使用秘密
+        });
 
-    const profile = await profileResponse.json();
+        const tokenResponse = await fetch('https://api.line.me/oauth2/v2.1/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tokenRequestBody,
+        });
 
-    // 回傳 token 和使用者資料
-    return res.status(200).json({
-      success: true,
-      accessToken: data.access_token,
-      idToken: data.id_token,
-      refreshToken: data.refresh_token,
-      expiresIn: data.expires_in,
-      profile: profile
-    });
+        if (!tokenResponse.ok) {
+            const errorData = await tokenResponse.json();
+            console.error('LINE Token Error:', errorData);
+            // 由於 400 錯誤是來自 LINE 的，我們直接返回給前端
+            return res.status(400).json({
+                error: 'Token Exchange Failed',
+                details: errorData.error_description || errorData.error || 'Unknown LINE error',
+            });
+        }
 
-  } catch (error) {
-    console.error('Server error:', error);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message
-    });
-  }
-}
+        const tokenData = await tokenResponse.json();
+        const { access_token } = tokenData;
+
+        // --- B. 請求使用者 Profile ---
+        const profileResponse = await fetch('https://api.line.me/v2/profile', {
+            headers: { 'Authorization': `Bearer ${access_token}` },
+        });
+
+        if (!profileResponse.ok) {
+             return res.status(500).json({ error: 'Failed to get user profile' });
+        }
+
+        const profile = await profileResponse.json();
+
+        // 3. 成功：將 LINE 的資料回傳給前端
+        res.status(200).json({
+            success: true,
+            user: {
+                userId: profile.userId,
+                displayName: profile.displayName,
+                pictureUrl: profile.pictureUrl,
+            },
+            // ⚠️ 建議不要將 Access Token 直接傳回前端，但為了簡化流程，您可以先傳回
+            accessToken: access_token 
+        });
+
+    } catch (error) {
+        console.error('Server error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
