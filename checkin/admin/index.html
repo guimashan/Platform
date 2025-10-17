@@ -434,23 +434,65 @@
 
         console.log('✓ 登入驗證通過，繼續載入管理後台');
 
-        // ==========================================
-        // Firebase 設定
-        // ==========================================
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, query, orderBy, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+// ==========================================
+// 前端數據獲取 (透過後端 API)
+// ==========================================
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDXz2YWlYTE5İ81YOBnPEHtJfUİMH4I4ZQ",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.firebasestorage.app",
-            messagingSenderId: "646505235940",
-            appId: "1:646505235940:web:eaa1e12d06da67bcb4ddf4"
-        };
+// 呼叫您剛才建立的 Serverless Function
+const ADMIN_API_URL = '/api/admin-checkins';
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+// ==========================================
+// 全域變數
+// ==========================================
+let allRecords = [];
+let filteredRecords = [];
+
+// ==========================================
+// 載入簽到記錄 (透過 API)
+// ==========================================
+async function loadCheckinRecords() {
+    try {
+        console.log('載入簽到記錄 (透過 API)...');
+        
+        const response = await fetch(ADMIN_API_URL, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `無法從伺服器取得資料 (狀態碼: ${response.status})`);
+        }
+        
+        const data = await response.json();
+        
+        // 伺服器回傳的資料
+        allRecords = data.records.map(record => ({
+             ...record,
+             // 確保 timestamp 屬性是時間戳，以便後續日期處理
+             timestamp: record.timestamp || Date.now() 
+        }));
+
+        console.log('✓ 載入完成，共', allRecords.length, '筆記錄');
+        
+        filteredRecords = [...allRecords];
+        
+        updateStatistics();
+        displayRecords(filteredRecords);
+        loadPatrolsForFilter();
+        
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('records-container').style.display = 'block';
+        
+    } catch (error) {
+        console.error('載入失敗:', error);
+        document.getElementById('loading').innerHTML = `
+            <p style="color: #f44336;">❌ 載入失敗: ${error.message}<br>請檢查您的 **Vercel 環境變數** 和 **Firebase Admin API** 檔案。</p>
+        `;
+    }
+}
 
         // ==========================================
         // 全域變數
