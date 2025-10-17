@@ -507,446 +507,433 @@
     </div>
 
     <script type="module">
-        // ==========================================
-        // LINE 登入檢查與處理
-        // ==========================================
-        const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+// /checkin/admin/users.html 的 <script type="module"> 區塊
 
-        console.log('=== 使用者管理載入 ===');
-        console.log('當前頁面:', window.location.href);
+// ==========================================
+// LINE 登入檢查與處理 (這部分保持不變)
+// ==========================================
+const LINE_LOGIN_CHANNEL_ID = '2008269293';
+const REDIRECT_URI = 'https://guimashen.vercel.app/auth/callback';
+// ⚠️ 新增：用於管理使用者列表和更新角色的安全 API 路由
+const USERS_ADMIN_API_URL = '/api/users-admin';
+// ⚠️ 檢查當前使用者的權限，我們將繼續使用 /api/users
+const USER_ROLE_API_URL = '/api/users'; 
 
-        // 檢查登入狀態
-        function checkLoginStatus() {
-            const lineUserId = localStorage.getItem('line_user_id');
-            const displayName = localStorage.getItem('line_display_name');
+console.log('=== 使用者管理載入 ===');
+console.log('當前頁面:', window.location.href);
 
-            console.log('檢查登入狀態:');
-            console.log('  - line_user_id:', lineUserId ? '✓ 有' : '✗ 無');
-            console.log('  - line_display_name:', displayName ? '✓ 有' : '✗ 無');
+// 檢查登入狀態 (保持不變)
+function checkLoginStatus() {
+    const lineUserId = localStorage.getItem('line_user_id');
+    const displayName = localStorage.getItem('line_display_name');
 
-            if (!lineUserId || !displayName) {
-                console.log('❌ 未登入，顯示登入畫面');
-                showLoginScreen();
-                return false;
-            }
+    if (!lineUserId || !displayName) {
+        showLoginScreen();
+        return false;
+    }
+    return true;
+}
 
-            console.log('✓ 已登入:', displayName);
-            return true;
+// 顯示登入畫面 (保持不變)
+function showLoginScreen() {
+    document.body.innerHTML = `
+        <div style="
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        ">
+            <div style="
+                background: white;
+                border-radius: 20px;
+                padding: 40px 30px;
+                max-width: 400px;
+                width: 100%;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                text-align: center;
+            ">
+                <div style="font-size: 4rem; margin-bottom: 20px;">🔐</div>
+                <h1 style="color: #667eea; margin-bottom: 10px; font-size: 1.8rem;">使用者管理</h1>
+                <p style="color: #666; margin-bottom: 30px; line-height: 1.6;">
+                    請先登入以存取管理功能
+                </p>
+                <button onclick="handleLineLogin()" style="
+                    width: 100%;
+                    padding: 15px;
+                    font-size: 1.1rem;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    background: #00C300;
+                    color: white;
+                    transition: all 0.3s;
+                " onmouseover="this.style.background='#00B000'" 
+                   onmouseout="this.style.background='#00C300'">
+                    使用 LINE 帳號登入
+                </button>
+                <p style="color: #999; font-size: 0.85rem; margin-top: 20px;">
+                    需要系統管理員權限
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+// LINE 登入處理 (保持不變)
+window.handleLineLogin = function() {
+    const currentUrl = window.location.href;
+    const state = JSON.stringify({ redirect: currentUrl });
+    
+    const authUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
+        `response_type=code` +
+        `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+        `&state=${encodeURIComponent(state)}` +
+        `&scope=profile%20openid`;
+        
+    window.location.href = authUrl;
+};
+
+// 頁面載入時檢查登入
+const isLoggedIn = checkLoginStatus();
+
+if (!isLoggedIn) {
+    throw new Error('需要登入');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 使用者管理 (已修改為 API 模式)
+// ═══════════════════════════════════════════════════════════════
+
+// 移除 Firebase 引用
+// import { initializeApp } from '...';
+// import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from '...';
+
+// 全域變數
+let allUsers = [];
+let currentUser = null;
+let editingUserId = null;
+
+// 角色說明 (保持不變)
+const roleDescriptions = {
+    'user': '工作同仁：可以進行簽到，無法訪問管理後台',
+    'poweruser': '管理者：可以查看簽到記錄，無法管理巡邏點',
+    'admin': '系統管理員：可以管理巡邏點、查看所有記錄、管理使用者',
+    'superadmin': '最高系統管理員：擁有所有權限，可以設定其他管理員'
+};
+
+// ========== 顯示訊息 (保持不變) ==========
+function showMessage(message, type = 'success') {
+    const messageArea = document.getElementById('message-area');
+    const className = type === 'success' ? 'success-message' : 'error-message';
+    
+    messageArea.innerHTML = `<div class="${className}">${message}</div>`;
+    
+    setTimeout(() => {
+        messageArea.innerHTML = '';
+    }, 5000);
+}
+
+// ========== 初始化 (修改為 API 檢查權限) ==========
+async function init() {
+    try {
+        const lineUserId = localStorage.getItem('line_user_id');
+        const displayName = localStorage.getItem('line_display_name');
+        const pictureUrl = localStorage.getItem('line_picture_url');
+
+        if (!lineUserId) {
+            alert('請先登入！');
+            window.location.href = '/checkin/';
+            return;
         }
 
-        // 顯示登入畫面
-        function showLoginScreen() {
-            document.body.innerHTML = `
-                <div style="
-                    font-family: 'Microsoft JhengHei', Arial, sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    min-height: 100vh;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    margin: 0;
-                    padding: 20px;
-                ">
-                    <div style="
-                        background: white;
-                        border-radius: 20px;
-                        padding: 40px 30px;
-                        max-width: 400px;
-                        width: 100%;
-                        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                        text-align: center;
-                    ">
-                        <div style="font-size: 4rem; margin-bottom: 20px;">🔐</div>
-                        <h1 style="color: #667eea; margin-bottom: 10px; font-size: 1.8rem;">使用者管理</h1>
-                        <p style="color: #666; margin-bottom: 30px; line-height: 1.6;">
-                            請先登入以存取管理功能
-                        </p>
-                        <button onclick="handleLineLogin()" style="
-                            width: 100%;
-                            padding: 15px;
-                            font-size: 1.1rem;
-                            font-weight: bold;
-                            border: none;
-                            border-radius: 10px;
-                            cursor: pointer;
-                            background: #00C300;
-                            color: white;
-                            transition: all 0.3s;
-                        " onmouseover="this.style.background='#00B000'" 
-                           onmouseout="this.style.background='#00C300'">
-                            使用 LINE 帳號登入
-                        </button>
-                        <p style="color: #999; font-size: 0.85rem; margin-top: 20px;">
-                            需要管理員權限
-                        </p>
+        currentUser = {
+            userId: lineUserId,
+            displayName: displayName || '未知使用者',
+            pictureUrl: pictureUrl || ''
+        };
+
+        // 顯示使用者資訊
+        document.getElementById('user-name').textContent = currentUser.displayName;
+        if (currentUser.pictureUrl) {
+            document.getElementById('user-avatar').src = currentUser.pictureUrl;
+        }
+
+        // ⚠️ 透過 API 檢查權限
+        const roleResponse = await fetch(`${USER_ROLE_API_URL}?userId=${lineUserId}`);
+
+        if (roleResponse.status === 403) {
+            throw new Error('權限不足，無法訪問管理介面');
+        }
+
+        if (!roleResponse.ok) {
+            throw new Error('無法獲取用戶角色資訊');
+        }
+        
+        const roleData = await roleResponse.json();
+        const role = roleData.role || 'user';
+        currentUser.role = role;
+        
+        // 只有 admin, superadmin 可以管理使用者
+        if (!['admin', 'superadmin'].includes(role)) {
+            alert('您沒有權限訪問此頁面！\n\n需要：系統管理員權限');
+            window.location.href = '/checkin/';
+            return;
+        }
+        
+        // 載入使用者
+        await loadUsers();
+
+        // 監聽角色選擇變化 (保持不變)
+        document.getElementById('role-select').addEventListener('change', function() {
+            const selectedRole = this.value;
+            document.getElementById('role-description').textContent = roleDescriptions[selectedRole];
+        });
+
+    } catch (error) {
+        console.error('初始化失敗:', error);
+        showMessage('系統初始化失敗：' + error.message, 'error');
+        // 如果是權限不足，強制登出
+        if (error.message.includes('權限不足') || error.message.includes('無法獲取')) {
+             window.handleLogout();
+        }
+    }
+}
+
+// ========== 載入使用者 (修改為 API 請求) ==========
+async function loadUsers() {
+    try {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('users-table').style.display = 'none';
+        
+        const response = await fetch(USERS_ADMIN_API_URL, {
+             method: 'GET',
+             headers: {
+                 'Content-Type': 'application/json',
+                 // 傳遞當前管理員的 ID 以供 API 進行二次權限檢查
+                 'x-user-id': currentUser.userId 
+             }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || '無法載入使用者列表');
+        }
+
+        const data = await response.json();
+        allUsers = data.users;
+
+        // 格式化時間戳 (從 API 接收到的資料通常是 ISO 字串或毫秒數)
+        allUsers = allUsers.map(user => ({
+            ...user,
+            createdAt: user.createdAt ? new Date(user.createdAt) : null,
+            lastLoginAt: user.lastLoginAt ? new Date(user.lastLoginAt) : null,
+            // 確保有預設值
+            role: user.role || 'user', 
+            displayName: user.displayName || '未知使用者',
+            pictureUrl: user.pictureUrl || ''
+        }));
+        
+        // 按角色和名稱排序 (保持不變)
+        allUsers.sort((a, b) => {
+            const roleOrder = { 'superadmin': 0, 'admin': 1, 'poweruser': 2, 'user': 3 };
+            const roleCompare = roleOrder[a.role] - roleOrder[b.role];
+            if (roleCompare !== 0) return roleCompare;
+            return a.displayName.localeCompare(b.displayName, 'zh-TW');
+        });
+
+        renderUsers();
+        updateStats();
+
+    } catch (error) {
+        console.error('載入使用者失敗:', error);
+        showMessage('載入使用者失敗：' + error.message, 'error');
+        
+        document.getElementById('loading').innerHTML = `
+            <div class="empty-state">
+                <div class="icon">❌</div>
+                <h3>載入失敗</h3>
+                <p>${error.message}</p>
+                <br>
+                <button class="btn btn-primary" onclick="location.reload()">重試</button>
+            </div>
+        `;
+    }
+}
+
+// ========== 渲染使用者 (小幅修改時間處理邏輯) ==========
+function renderUsers() {
+    document.getElementById('loading').style.display = 'none';
+    
+    if (allUsers.length === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('users-table').style.display = 'none';
+        return;
+    }
+
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('users-table').style.display = 'table';
+
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '';
+
+    allUsers.forEach(user => {
+        const row = document.createElement('tr');
+        
+        // 格式化時間
+        const formatTime = (date) => {
+            if (!date || isNaN(date.getTime())) return '-';
+            // 假設 date 已經是 Date 物件
+            return date.toLocaleDateString('zh-TW');
+        };
+
+        const createdAtStr = formatTime(user.createdAt);
+        const lastLoginStr = formatTime(user.lastLoginAt);
+
+        // 角色徽章 (保持不變)
+        const roleBadgeClass = `badge-${user.role}`;
+        const roleDisplayName = {
+            'superadmin': '最高系統管理員',
+            'admin': '系統管理員',
+            'poweruser': '管理者',
+            'user': '工作同仁'
+        }[user.role] || '工作同仁';
+
+        // 是否可以編輯
+        const canEdit = currentUser.role === 'superadmin' || 
+                        (currentUser.role === 'admin' && user.role !== 'superadmin');
+
+        const editButton = canEdit 
+            ? `<button class="btn btn-primary btn-small" onclick="editUserRole('${user.userId}')">✏️ 設定角色</button>`
+            : '<span style="color: #999; font-size: 0.85rem;">無法編輯</span>';
+
+        row.innerHTML = `
+            <td>
+                <div class="user-cell">
+                    <img src="${user.pictureUrl}" 
+                         class="user-avatar-small" 
+                         alt="${user.displayName}"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22%23999%22%3E👤%3C/text%3E%3C/svg%3E'">
+                    <div>
+                        <strong>${user.displayName}</strong>
+                        ${user.userId === currentUser.userId ? '<br><span style="color: #667eea; font-size: 0.85rem;">（您）</span>' : ''}
                     </div>
                 </div>
-            `;
+            </td>
+            <td><span class="badge ${roleBadgeClass}">${roleDisplayName}</span></td>
+            <td>${createdAtStr}</td>
+            <td>${lastLoginStr}</td>
+            <td>${editButton}</td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
+// ========== 更新統計 (保持不變) ==========
+function updateStats() {
+    const admins = allUsers.filter(u => ['admin', 'superadmin', 'poweruser'].includes(u.role)).length;
+    const users = allUsers.filter(u => u.role === 'user').length;
+
+    document.getElementById('stat-total').textContent = allUsers.length;
+    document.getElementById('stat-admins').textContent = admins;
+    document.getElementById('stat-users').textContent = users;
+}
+
+// ========== 編輯使用者角色 (保持不變) ==========
+window.editUserRole = function(userId) {
+    const user = allUsers.find(u => u.userId === userId);
+    if (!user) return;
+
+    editingUserId = userId;
+
+    document.getElementById('modal-user-avatar').src = user.pictureUrl || '';
+    document.getElementById('modal-user-name').textContent = user.displayName;
+    document.getElementById('role-select').value = user.role;
+    document.getElementById('role-description').textContent = roleDescriptions[user.role];
+
+    document.getElementById('role-modal').classList.add('show');
+};
+
+// ========== 關閉彈窗 (保持不變) ==========
+window.closeRoleModal = function() {
+    document.getElementById('role-modal').classList.remove('show');
+    editingUserId = null;
+};
+
+// ========== 提交角色變更 (修改為 API 請求) ==========
+window.handleRoleSubmit = async function(event) {
+    event.preventDefault();
+
+    const newRole = document.getElementById('role-select').value;
+    const user = allUsers.find(u => u.userId === editingUserId);
+
+    if (!user) return;
+
+    if (user.role === newRole) {
+        showMessage('角色沒有變更！', 'error');
+        return;
+    }
+
+    // 確認變更
+    if (!confirm(`確定要將「${user.displayName}」的角色從「${roleDescriptions[user.role]}」變更為「${roleDescriptions[newRole]}」嗎？`)) {
+        return;
+    }
+
+    const submitBtn = document.getElementById('role-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '更新中...';
+
+    try {
+        // ⚠️ 透過 API 發送 PUT 請求更新角色
+        const response = await fetch(USERS_ADMIN_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': currentUser.userId // 傳遞操作者的 ID 進行權限檢查
+            },
+            body: JSON.stringify({
+                userId: editingUserId,
+                newRole: newRole
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || '更新使用者角色失敗');
         }
 
-        // LINE 登入處理
-        window.handleLineLogin = function() {
-            const currentUrl = window.location.href;
-            
-            console.log('=== 開始 LINE 登入 ===');
-            console.log('當前頁面:', currentUrl);
-            
-            const state = JSON.stringify({
-                redirect: currentUrl
-            });
-            
-            console.log('State 資料:', state);
-            console.log('編碼後:', encodeURIComponent(state));
+        showMessage(`已將「${user.displayName}」的角色更新為「${roleDescriptions[newRole]}」`, 'success');
+        closeRoleModal();
+        await loadUsers(); // 重新載入列表
 
-            const authUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
-                `response_type=code` +
-                `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
-                `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-                `&state=${encodeURIComponent(state)}` +
-                `&scope=profile%20openid`;
+    } catch (error) {
+        console.error('更新失敗:', error);
+        showMessage('更新失敗：' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '更新';
+    }
+};
 
-            console.log('導向 LINE 授權頁面...');
-            console.log('授權完成後將導回:', currentUrl);
-            
-            window.location.href = authUrl;
-        };
+// ========== 登出 (保持不變) ==========
+window.handleLogout = function() {
+    if (confirm('確定要登出嗎？')) {
+        localStorage.removeItem('line_user_id');
+        localStorage.removeItem('line_display_name');
+        localStorage.removeItem('line_picture_url');
+        localStorage.removeItem('line_login_timestamp');
+        window.location.href = '/checkin/';
+    }
+};
 
-        // 頁面載入時檢查登入
-        const isLoggedIn = checkLoginStatus();
-
-        if (!isLoggedIn) {
-            // 未登入，停止執行後續程式碼
-            console.log('⚠️ 未登入，停止載入管理後台');
-            throw new Error('需要登入');
-        }
-
-        console.log('✓ 登入驗證通過，繼續載入管理後台');
-
-        // ═══════════════════════════════════════════════════════════════
-        // 使用者管理
-        // ═══════════════════════════════════════════════════════════════
-
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
-        // Firebase 設定
-        const firebaseConfig = {
-            apiKey: "AIzaSyDXz2YWlYTE5İ81YOBnPEHtJfUİMH4I4ZQ",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.firebasestorage.app",
-            messagingSenderId: "646505235940",
-            appId: "1:646505235940:web:eaa1e12d06da67bcb4ddf4"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // 全域變數
-        let allUsers = [];
-        let currentUser = null;
-        let editingUserId = null;
-
-        // 角色說明
-        const roleDescriptions = {
-            'user': '工作同仁：可以進行簽到，無法訪問管理後台',
-            'poweruser': '管理者：可以查看簽到記錄，無法管理巡邏點',
-            'admin': '系統管理員：可以管理巡邏點、查看所有記錄、管理使用者',
-            'superadmin': '最高系統管理員：擁有所有權限，可以設定其他管理員'
-        };
-
-        // ========== 顯示訊息 ==========
-        function showMessage(message, type = 'success') {
-            const messageArea = document.getElementById('message-area');
-            const className = type === 'success' ? 'success-message' : 'error-message';
-            
-            messageArea.innerHTML = `<div class="${className}">${message}</div>`;
-            
-            setTimeout(() => {
-                messageArea.innerHTML = '';
-            }, 5000);
-        }
-
-        // ========== 初始化 ==========
-        async function init() {
-            try {
-                console.log('開始初始化...');
-
-                // 檢查登入狀態
-                const lineUserId = localStorage.getItem('line_user_id');
-                const displayName = localStorage.getItem('line_display_name');
-                const pictureUrl = localStorage.getItem('line_picture_url');
-
-                if (!lineUserId) {
-                    alert('請先登入！');
-                    window.location.href = '/checkin/';
-                    return;
-                }
-
-                currentUser = {
-                    userId: lineUserId,
-                    displayName: displayName || '未知使用者',
-                    pictureUrl: pictureUrl || ''
-                };
-
-                // 顯示使用者資訊
-                document.getElementById('user-name').textContent = currentUser.displayName;
-                if (currentUser.pictureUrl) {
-                    document.getElementById('user-avatar').src = currentUser.pictureUrl;
-                }
-
-                // 檢查權限
-                const userDoc = await getDoc(doc(db, 'users', lineUserId));
-                
-                if (!userDoc.exists()) {
-                    alert('找不到使用者資料！');
-                    window.location.href = '/checkin/';
-                    return;
-                }
-
-                const role = userDoc.data().role || 'user';
-                currentUser.role = role;
-                
-                // 只有 admin, superadmin 可以管理使用者
-                if (!['admin', 'superadmin'].includes(role)) {
-                    alert('您沒有權限訪問此頁面！\n\n需要：系統管理員權限');
-                    window.location.href = '/checkin/';
-                    return;
-                }
-
-                // 載入使用者
-                await loadUsers();
-
-                // 監聽角色選擇變化
-                document.getElementById('role-select').addEventListener('change', function() {
-                    const selectedRole = this.value;
-                    document.getElementById('role-description').textContent = roleDescriptions[selectedRole];
-                });
-
-                console.log('初始化完成');
-
-            } catch (error) {
-                console.error('初始化失敗:', error);
-                showMessage('系統初始化失敗：' + error.message, 'error');
-            }
-        }
-
-        // ========== 載入使用者 ==========
-        async function loadUsers() {
-            try {
-                console.log('載入使用者...');
-                
-                const querySnapshot = await getDocs(collection(db, 'users'));
-                
-                allUsers = [];
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    allUsers.push({
-                        userId: docSnap.id,
-                        displayName: data.displayName || '未知使用者',
-                        pictureUrl: data.pictureUrl || '',
-                        role: data.role || 'user',
-                        createdAt: data.createdAt,
-                        lastLoginAt: data.lastLoginAt
-                    });
-                });
-
-                // 按角色和名稱排序
-                allUsers.sort((a, b) => {
-                    const roleOrder = { 'superadmin': 0, 'admin': 1, 'poweruser': 2, 'user': 3 };
-                    const roleCompare = roleOrder[a.role] - roleOrder[b.role];
-                    if (roleCompare !== 0) return roleCompare;
-                    return a.displayName.localeCompare(b.displayName, 'zh-TW');
-                });
-
-                console.log('載入的使用者數:', allUsers.length);
-
-                renderUsers();
-                updateStats();
-
-            } catch (error) {
-                console.error('載入使用者失敗:', error);
-                showMessage('載入使用者失敗：' + error.message, 'error');
-                
-                document.getElementById('loading').innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">❌</div>
-                        <h3>載入失敗</h3>
-                        <p>${error.message}</p>
-                        <br>
-                        <button class="btn btn-primary" onclick="location.reload()">重試</button>
-                    </div>
-                `;
-            }
-        }
-
-        // ========== 渲染使用者 ==========
-        function renderUsers() {
-            document.getElementById('loading').style.display = 'none';
-            
-            if (allUsers.length === 0) {
-                document.getElementById('empty-state').style.display = 'block';
-                document.getElementById('users-table').style.display = 'none';
-                return;
-            }
-
-            document.getElementById('empty-state').style.display = 'none';
-            document.getElementById('users-table').style.display = 'table';
-
-            const tbody = document.getElementById('users-tbody');
-            tbody.innerHTML = '';
-
-            allUsers.forEach(user => {
-                const row = document.createElement('tr');
-                
-                // 格式化時間
-                let createdAtStr = '-';
-                let lastLoginStr = '-';
-                
-                try {
-                    if (user.createdAt) {
-                        const createdDate = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
-                        if (!isNaN(createdDate.getTime())) {
-                            createdAtStr = createdDate.toLocaleDateString('zh-TW');
-                        }
-                    }
-                    
-                    if (user.lastLoginAt) {
-                        const lastLoginDate = user.lastLoginAt.toDate ? user.lastLoginAt.toDate() : new Date(user.lastLoginAt);
-                        if (!isNaN(lastLoginDate.getTime())) {
-                            lastLoginStr = lastLoginDate.toLocaleDateString('zh-TW');
-                        }
-                    }
-                } catch (e) {
-                    console.error('日期格式化失敗:', e);
-                }
-
-                // 角色徽章
-                const roleBadgeClass = `badge-${user.role}`;
-                const roleDisplayName = {
-                    'superadmin': '最高系統管理員',
-                    'admin': '系統管理員',
-                    'poweruser': '管理者',
-                    'user': '工作同仁'
-                }[user.role] || '工作同仁';
-
-                // 是否可以編輯（superadmin 可以編輯所有人，admin 不能編輯 superadmin）
-                const canEdit = currentUser.role === 'superadmin' || 
-                                (currentUser.role === 'admin' && user.role !== 'superadmin');
-
-                const editButton = canEdit 
-                    ? `<button class="btn btn-primary btn-small" onclick="editUserRole('${user.userId}')">✏️ 設定角色</button>`
-                    : '<span style="color: #999; font-size: 0.85rem;">無法編輯</span>';
-
-                row.innerHTML = `
-                    <td>
-                        <div class="user-cell">
-                            <img src="${user.pictureUrl}" 
-                                 class="user-avatar-small" 
-                                 alt="${user.displayName}"
-                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22%23999%22%3E👤%3C/text%3E%3C/svg%3E'">
-                            <div>
-                                <strong>${user.displayName}</strong>
-                                ${user.userId === currentUser.userId ? '<br><span style="color: #667eea; font-size: 0.85rem;">（您）</span>' : ''}
-                            </div>
-                        </div>
-                    </td>
-                    <td><span class="badge ${roleBadgeClass}">${roleDisplayName}</span></td>
-                    <td>${createdAtStr}</td>
-                    <td>${lastLoginStr}</td>
-                    <td>${editButton}</td>
-                `;
-
-                tbody.appendChild(row);
-            });
-        }
-
-        // ========== 更新統計 ==========
-        function updateStats() {
-            const admins = allUsers.filter(u => ['admin', 'superadmin', 'poweruser'].includes(u.role)).length;
-            const users = allUsers.filter(u => u.role === 'user').length;
-
-            document.getElementById('stat-total').textContent = allUsers.length;
-            document.getElementById('stat-admins').textContent = admins;
-            document.getElementById('stat-users').textContent = users;
-        }
-
-        // ========== 編輯使用者角色 ==========
-        window.editUserRole = function(userId) {
-            const user = allUsers.find(u => u.userId === userId);
-            if (!user) return;
-
-            editingUserId = userId;
-
-            document.getElementById('modal-user-avatar').src = user.pictureUrl || '';
-            document.getElementById('modal-user-name').textContent = user.displayName;
-            document.getElementById('role-select').value = user.role;
-            document.getElementById('role-description').textContent = roleDescriptions[user.role];
-
-            document.getElementById('role-modal').classList.add('show');
-        };
-
-        // ========== 關閉彈窗 ==========
-        window.closeRoleModal = function() {
-            document.getElementById('role-modal').classList.remove('show');
-            editingUserId = null;
-        };
-
-        // ========== 提交角色變更 ==========
-        window.handleRoleSubmit = async function(event) {
-            event.preventDefault();
-
-            const newRole = document.getElementById('role-select').value;
-            const user = allUsers.find(u => u.userId === editingUserId);
-
-            if (!user) return;
-
-            if (user.role === newRole) {
-                showMessage('角色沒有變更！', 'error');
-                return;
-            }
-
-            // 確認變更
-            if (!confirm(`確定要將「${user.displayName}」的角色從「${roleDescriptions[user.role]}」變更為「${roleDescriptions[newRole]}」嗎？`)) {
-                return;
-            }
-
-            const submitBtn = document.getElementById('role-submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = '更新中...';
-
-            try {
-                await setDoc(doc(db, 'users', editingUserId), {
-                    role: newRole
-                }, { merge: true });
-
-                showMessage(`已將「${user.displayName}」的角色更新為「${roleDescriptions[newRole]}」`, 'success');
-                closeRoleModal();
-                await loadUsers();
-
-            } catch (error) {
-                console.error('更新失敗:', error);
-                showMessage('更新失敗：' + error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = '更新';
-            }
-        };
-
-        // ========== 登出 ==========
-        window.handleLogout = function() {
-            if (confirm('確定要登出嗎？')) {
-                localStorage.removeItem('line_user_id');
-                localStorage.removeItem('line_display_name');
-                localStorage.removeItem('line_picture_url');
-                localStorage.removeItem('line_login_timestamp');
-                window.location.href = '/checkin/';
-            }
-        };
-
-        // ========== 執行初始化 ==========
-        init();
+// ========== 執行初始化 ==========
+init();
     </script>
 </body>
 </html>
