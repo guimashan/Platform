@@ -14,7 +14,7 @@ export default async function handler(request, response) {
     const client_secret = process.env.LINE_CHANNEL_SECRET;
 
     if (!code || !redirect_uri || !client_secret) {
-        return response.status(400).json({ error: 'Missing required parameters.' });
+        return response.status(400).json({ error: 'Missing required parameters.', details: '前端未提供完整的 code, redirect_uri 或後端缺少 client_secret。' });
     }
 
     try {
@@ -36,8 +36,8 @@ export default async function handler(request, response) {
         const tokenData = await tokenResponse.json();
         
         if (!tokenResponse.ok) {
-            console.error('LINE Token API Error:', tokenData);
-            throw new Error(tokenData.error_description || 'Failed to get access token.');
+            // 如果從 LINE 取得 token 失敗，拋出詳細錯誤
+            throw new Error(`LINE Token API Error: ${JSON.stringify(tokenData)}`);
         }
 
         const accessToken = tokenData.access_token;
@@ -52,7 +52,8 @@ export default async function handler(request, response) {
         const profileData = await profileResponse.json();
         
         if (!profileResponse.ok) {
-            throw new Error(profileData.message || 'Failed to get user profile.');
+             // 如果從 LINE 取得 profile 失敗，拋出詳細錯誤
+            throw new Error(`LINE Profile API Error: ${JSON.stringify(profileData)}`);
         }
         
         // 檢查 pictureUrl 是否存在，如果不存在則提供一個預設頭像
@@ -66,7 +67,8 @@ export default async function handler(request, response) {
         });
 
     } catch (error) {
-        console.error('LINE Auth Error:', error);
+        // 將捕捉到的詳細錯誤訊息回傳給前端
+        console.error('LINE Auth CATCH Error:', error.message);
         response.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 }
