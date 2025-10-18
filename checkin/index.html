@@ -14,16 +14,20 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
     <div id="main-container" class="w-full max-w-md">
         <div id="app-card" class="bg-white rounded-xl shadow-lg p-6 md:p-8 text-center">
-            <!-- 登入畫面 -->
-            <div id="login-view">
+            <!-- Loading View -->
+            <div id="loading-view">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto spinner"></div>
+                <p id="loading-text" class="mt-4 text-gray-600">正在初始化...</p>
+            </div>
+            <!-- Login View -->
+            <div id="login-view" class="hidden">
                 <h1 class="text-2xl font-bold text-gray-800 mb-2">奉香簽到系統</h1>
                 <p class="text-gray-500 mb-8">龜馬山紫皇天乙真慶宮</p>
                 <button id="login-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
                     <i class="fab fa-line text-2xl mr-3"></i> 使用 LINE 帳號登入
                 </button>
             </div>
-
-            <!-- 簽到畫面 (登入後顯示) -->
+            <!-- Check-in View -->
             <div id="checkin-view" class="hidden">
                  <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-800">奉香簽到</h1>
@@ -42,7 +46,7 @@
                     <p class="text-sm text-blue-800">目前巡邏點</p>
                     <p id="patrol-name" class="text-xl font-bold text-blue-900">載入中...</p>
                 </div>
-                <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-400">
+                <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-400" disabled>
                     <i class="fas fa-map-marker-alt mr-2"></i> 取得定位並簽到
                 </button>
             </div>
@@ -52,7 +56,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, collection, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
@@ -62,33 +66,36 @@
             messagingSenderId: "698452461679",
             appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
-
         const lineClientId = '2008269293';
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        const loadingView = document.getElementById('loading-view');
+        const loadingText = document.getElementById('loading-text');
         const loginView = document.getElementById('login-view');
         const checkinView = document.getElementById('checkin-view');
-        const mainContainer = document.getElementById('main-container');
+        const checkinBtn = document.getElementById('checkin-btn');
 
-        let currentUserData = null;
-
-        function showLoading(message) {
-            mainContainer.innerHTML = `<div class="bg-white rounded-xl shadow-lg p-8 text-center"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto spinner"></div><p class="mt-4 text-gray-600">${message}</p></div>`;
+        function showView(viewToShow) {
+            loadingView.classList.add('hidden');
+            loginView.classList.add('hidden');
+            checkinView.classList.add('hidden');
+            viewToShow.classList.remove('hidden');
         }
 
         function handleLineRedirect() {
             const state = Date.now().toString();
             localStorage.setItem('line_login_state', state);
-            const redirectUri = `${window.location.origin}/checkin/`; 
+            const redirectUri = `${window.location.origin}/checkin/`;
             const scope = 'profile openid';
             const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
             window.location.href = authUrl;
         }
 
         async function processLineCallback(code, state) {
+            loadingText.textContent = '正在驗證 LINE 身分...';
             const localState = localStorage.getItem('line_login_state');
             if (state !== localState) {
                 alert('登入驗證失敗，請重試。');
@@ -96,7 +103,6 @@
                 return;
             }
             localStorage.removeItem('line_login_state');
-            showLoading('正在驗證 LINE 身分...');
 
             try {
                 const redirectUri = `${window.location.origin}/checkin/`;
@@ -108,8 +114,9 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.details || '從後端取得 Firebase 令牌失敗');
                 
-                showLoading('正在登入系統...');
+                loadingText.textContent = '正在登入系統...';
                 await signInWithCustomToken(auth, data.token);
+                // onAuthStateChanged will handle the rest
             } catch (error) {
                 console.error('Callback 處理失敗:', error);
                 alert(`登入失敗：${error.message}`);
@@ -118,36 +125,34 @@
         }
         
         async function displayCheckinView(user) {
-            const userRef = doc(db, "users", user.uid);
-            const userSnap = await getDoc(userRef);
-            if (!userSnap.exists()) {
-                console.error("在 Firestore 中找不到使用者資料，可能是資料同步延遲或權限問題。");
-                alert("無法取得您的使用者資訊，將為您登出，請稍後再試。");
-                // --- FIX START: Clean URL before signing out to prevent loops ---
-                window.history.replaceState({}, document.title, "/checkin/");
-                await signOut(auth);
-                // --- FIX END ---
-                return;
+            try {
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
+                if (!userSnap.exists()) throw new Error("在資料庫中找不到您的使用者設定檔。");
+
+                const currentUserData = userSnap.data();
+                document.getElementById('user-avatar').src = currentUserData.pictureUrl;
+                document.getElementById('user-name').textContent = `您好，${currentUserData.displayName}！`;
+                const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
+                document.getElementById('user-role').textContent = `角色：${roles[currentUserData.role] || '未知'}`;
+
+                showView(checkinView);
+                await loadPatrolPoint();
+
+            } catch (error) {
+                 console.error("顯示簽到頁面失敗:", error);
+                 alert("無法載入您的使用者資訊，將為您登出，請稍後再試。");
+                 window.history.replaceState({}, document.title, "/checkin/");
+                 await signOut(auth);
             }
-            currentUserData = userSnap.data();
-
-            document.getElementById('user-avatar').src = currentUserData.pictureUrl;
-            document.getElementById('user-name').textContent = `您好，${currentUserData.displayName}！`;
-            const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
-            document.getElementById('user-role').textContent = `角色：${roles[currentUserData.role] || '未知'}`;
-
-            checkinView.classList.remove('hidden');
-            loginView.classList.add('hidden');
-
-            loadPatrolPoint();
         }
 
         async function loadPatrolPoint() {
             const patrolNameEl = document.getElementById('patrol-name');
-            const urlParams = new URLSearchParams(window.location.search);
-            const patrolId = urlParams.get('patrolId');
-            
+            checkinBtn.disabled = true;
             try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const patrolId = urlParams.get('patrolId');
                 let patrolSnap;
                 if (patrolId) {
                     patrolSnap = await getDoc(doc(db, "patrols", patrolId));
@@ -161,6 +166,7 @@
 
                 if (patrolSnap && patrolSnap.exists()) {
                     patrolNameEl.textContent = patrolSnap.data().name;
+                    checkinBtn.disabled = false; // Enable button on success
                 } else {
                     patrolNameEl.textContent = patrolId ? '找不到該巡邏點' : '請先建立「龜馬山辦公室」預設巡邏點';
                     patrolNameEl.classList.add('text-red-500');
@@ -172,7 +178,8 @@
             }
         }
 
-        onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe(); // Run only once to get initial state
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
@@ -181,22 +188,19 @@
                 const redirectUrl = localStorage.getItem('login_redirect_url');
                 if (redirectUrl) {
                     localStorage.removeItem('login_redirect_url');
-                    const cleanUrl = redirectUrl.split('?')[0]; 
-                    window.location.href = cleanUrl;
-                    return; 
+                    window.location.href = redirectUrl;
+                } else {
+                    if (code || state) {
+                        // Clean up URL params from LINE redirect
+                        window.history.replaceState({}, document.title, "/checkin/");
+                    }
+                    displayCheckinView(user);
                 }
-                
-                if (code || state) {
-                    window.history.replaceState({}, document.title, "/checkin/");
-                }
-                displayCheckinView(user);
-
             } else {
-                checkinView.classList.add('hidden');
-                loginView.classList.remove('hidden');
-                
                 if (code && state) {
                     processLineCallback(code, state);
+                } else {
+                    showView(loginView);
                 }
             }
         });
@@ -206,7 +210,6 @@
             signOut(auth);
             localStorage.removeItem('login_redirect_url');
         });
-
     </script>
 </body>
 </html>
