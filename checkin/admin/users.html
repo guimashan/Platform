@@ -73,7 +73,7 @@
                         </tr>
                     </thead>
                     <tbody id="users-tbody">
-                        <tr><td colspan="5" class="text-center p-8 text-gray-500">正在載入使用者資料...</td></tr>
+                        <tr><td colspan="5" class="text-center p-8 text-gray-500">正在檢查登入狀態...</td></tr>
                     </tbody>
                  </table>
             </div>
@@ -107,6 +107,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -120,6 +121,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         // DOM Elements
         const usersTbody = document.getElementById('users-tbody');
@@ -135,7 +137,7 @@
         const saveRoleBtn = document.getElementById('save-role-btn');
 
         let allUsersData = [];
-        const currentAdmin = JSON.parse(localStorage.getItem('guimashan_user'));
+        let currentAdmin = null;
 
         function mapRoleToChinese(role) {
             const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
@@ -147,46 +149,69 @@
             return new Date(isoString).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\//g, '-');
         }
 
-        // Real-time listener for users
-        onSnapshot(collection(db, 'users'), (snapshot) => {
-            if (snapshot.empty) {
-                usersTbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">沒有任何使用者資料。</td></tr>';
-                return;
+        function attachUserListener() {
+            // Real-time listener for users
+            onSnapshot(collection(db, 'users'), (snapshot) => {
+                if (snapshot.empty) {
+                    usersTbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">沒有任何使用者資料。</td></tr>';
+                    return;
+                }
+                
+                allUsersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Refresh current admin data from the live list
+                const localAdminData = JSON.parse(localStorage.getItem('guimashan_user'));
+                if(localAdminData) {
+                    currentAdmin = allUsersData.find(u => u.id === localAdminData.userId);
+                }
+
+
+                usersTbody.innerHTML = allUsersData.map(user => {
+                    const isCurrentUser = currentAdmin && user.id === currentAdmin.id;
+                    const targetIsSuperAdmin = user.role === 'superadmin';
+                    const adminIsAdmin = currentAdmin && currentAdmin.role === 'admin';
+                    const canEdit = !isCurrentUser && !(adminIsAdmin && targetIsSuperAdmin);
+
+                    return `
+                        <tr class="border-b hover:bg-gray-50">
+                            <td class="p-3">
+                                <div class="flex items-center">
+                                    <img src="${user.pictureUrl || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full mr-3">
+                                    <span class="font-medium">${user.displayName || '未命名'}</span>
+                                </div>
+                            </td>
+                            <td class="p-3">${mapRoleToChinese(user.role)}</td>
+                            <td class="p-3 hidden md:table-cell">${formatTimestamp(user.createdAt)}</td>
+                            <td class="p-3 hidden lg:table-cell">${formatTimestamp(user.lastLoginAt)}</td>
+                            <td class="p-3">
+                                ${canEdit ? `<button class="edit-role-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-3 rounded" data-userid="${user.id}">設定角色</button>` : `<span class="text-xs text-gray-400">無法編輯</span>`}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Update stats
+                const total = allUsersData.length;
+                const admins = allUsersData.filter(u => ['poweruser', 'admin', 'superadmin'].includes(u.role)).length;
+                totalUsersEl.textContent = total;
+                adminUsersEl.textContent = admins;
+                generalUsersEl.textContent = total - admins;
+            });
+        }
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in.
+                attachUserListener();
+            } else {
+                // User is signed out.
+                usersTbody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">權限不足或尚未登入。請先從主頁登入。<br><a href="../index.html" class="text-blue-500 underline mt-2 inline-block">點此返回簽到主頁</a></td></tr>`;
+                totalUsersEl.textContent = 0;
+                adminUsersEl.textContent = 0;
+                generalUsersEl.textContent = 0;
             }
-            
-            allUsersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            usersTbody.innerHTML = allUsersData.map(user => {
-                const isCurrentUser = currentAdmin && user.id === currentAdmin.userId;
-                const targetIsSuperAdmin = user.role === 'superadmin';
-                const adminIsAdmin = currentAdmin && currentAdmin.role === 'admin';
-                const canEdit = !isCurrentUser && !(adminIsAdmin && targetIsSuperAdmin);
-
-                return `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-3">
-                            <div class="flex items-center">
-                                <img src="${user.pictureUrl || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full mr-3">
-                                <span class="font-medium">${user.displayName || '未命名'}</span>
-                            </div>
-                        </td>
-                        <td class="p-3">${mapRoleToChinese(user.role)}</td>
-                        <td class="p-3 hidden md:table-cell">${formatTimestamp(user.createdAt)}</td>
-                        <td class="p-3 hidden lg:table-cell">${formatTimestamp(user.lastLoginAt)}</td>
-                        <td class="p-3">
-                            ${canEdit ? `<button class="edit-role-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-3 rounded" data-userid="${user.id}">設定角色</button>` : `<span class="text-xs text-gray-400">無法編輯</span>`}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            // Update stats
-            const total = allUsersData.length;
-            const admins = allUsersData.filter(u => ['poweruser', 'admin', 'superadmin'].includes(u.role)).length;
-            totalUsersEl.textContent = total;
-            adminUsersEl.textContent = admins;
-            generalUsersEl.textContent = total - admins;
         });
+
 
         // Modal Control
         function openRoleModal(userId) {
@@ -235,3 +260,4 @@
     </script>
 </body>
 </html>
+
