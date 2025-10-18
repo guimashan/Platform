@@ -4,26 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>龜馬山紫皇天乙真慶宮 奉香簽到系統</title>
-    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Font Awesome 圖示庫 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
-        /* 自定義樣式 */
-        body {
-            font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            -webkit-tap-highlight-color: transparent; /* 移除行動裝置點擊高亮效果 */
-        }
-        .btn-line {
-            background-color: #06C755;
-            transition: background-color 0.3s ease;
-        }
-        .btn-line:hover {
-            background-color: #05a546;
-        }
-        .btn-line:active, .btn-checkin:active {
-            transform: scale(0.98);
-        }
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .btn-line:active, .btn-checkin:active, .btn-retry:active { transform: scale(0.98); }
+        .message-card { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -39,220 +26,323 @@
         <div id="login-view">
             <h1 class="text-2xl font-bold text-gray-800 mb-2">📍 奉香簽到系統</h1>
             <p class="text-gray-500 mb-8">龜馬山紫皇天乙真慶宮</p>
-            <button id="line-login-btn" class="w-full btn-line text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-lg shadow-md focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
-                <i class="fab fa-line mr-3 text-2xl"></i>
-                使用 LINE 帳號登入
+            <button id="line-login-btn" class="w-full bg-[#06C755] hover:bg-[#05a546] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-lg shadow-md transition-colors duration-300">
+                <i class="fab fa-line mr-3 text-2xl"></i>使用 LINE 帳號登入
             </button>
-            <p class="text-xs text-gray-400 mt-6">💡 建議使用 Chrome 或 Safari 瀏覽器以獲得最佳體驗。</p>
+            <p class="text-xs text-gray-400 mt-6">💡 建議使用 Chrome 或 Safari 瀏覽器。</p>
         </div>
 
-        <!-- 簽到主畫面 (登入後顯示) -->
+        <!-- 簽到主畫面 -->
         <div id="checkin-view" class="hidden">
-            <div id="user-profile" class="mb-8">
+            <div id="user-profile" class="mb-6">
                 <img id="user-picture" src="https://placehold.co/100x100/E2E8F0/A0AEC0?text=Avatar" alt="User Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-gray-200">
                 <h2 class="text-xl font-bold text-gray-800">您好, <span id="user-name">使用者</span>！</h2>
                 <p class="text-sm text-gray-500">角色：<span id="user-role">載入中...</span></p>
             </div>
             
-            <div id="patrol-point-info" class="mb-8 p-4 bg-gray-50 rounded-lg">
+            <div id="patrol-point-info" class="mb-6 p-4 bg-gray-50 rounded-lg">
                  <h3 class="text-lg font-semibold text-gray-700">目前巡邏點</h3>
-                 <p id="patrol-point-name" class="text-2xl font-bold text-blue-600">龜馬山辦公室</p>
+                 <p id="patrol-point-name" class="text-2xl font-bold text-blue-600">讀取中...</p>
             </div>
 
-            <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-lg shadow-md transition-transform duration-200 btn-checkin focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
-                <i class="fas fa-map-marker-alt mr-3"></i>
-                取得定位並簽到
+            <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-lg shadow-md transition-transform duration-200 btn-checkin">
+                <i class="fas fa-map-marker-alt mr-3"></i>取得定位並簽到
             </button>
+             <div id="checkin-status" class="mt-4 text-sm text-gray-600 min-h-[20px]"></div>
 
-            <button id="logout-btn" class="w-full mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                登出
-            </button>
+            <button id="logout-btn" class="w-full mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">登出</button>
         </div>
+        
+        <!-- 結果顯示畫面 -->
+        <div id="result-view" class="hidden"></div>
 
     </main>
 
     <script type="module">
-        // Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- 設定區 ---
-        // !!重要!! 請務必填入您 Firebase 專案的真實設定
         const firebaseConfig = {
-            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8", // 請替換
+            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
             authDomain: "checkin-29f7f.firebaseapp.com",
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.appspot.com",
             messagingSenderId: "698452461679",
             appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
-
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
         const LINE_REDIRECT_URI = 'https://go.guimashan.org.tw/checkin/index.html';
+        const TEST_MODE = false; // 開發用，正式上線請設為 false
 
-        // --- DOM 元素 ---
-        const loadingSpinner = document.getElementById('loading-spinner');
+        // --- DOM 元素 & 狀態變數 ---
         const mainContent = document.getElementById('main-content');
+        const loadingSpinner = document.getElementById('loading-spinner');
         const loginView = document.getElementById('login-view');
         const checkinView = document.getElementById('checkin-view');
+        const resultView = document.getElementById('result-view');
         const lineLoginBtn = document.getElementById('line-login-btn');
         const userPicture = document.getElementById('user-picture');
         const userName = document.getElementById('user-name');
         const userRole = document.getElementById('user-role');
+        const patrolPointName = document.getElementById('patrol-point-name');
+        const checkinBtn = document.getElementById('checkin-btn');
+        const checkinStatus = document.getElementById('checkin-status');
         const logoutBtn = document.getElementById('logout-btn');
         
+        let currentUser = null;
+        let currentPatrol = null;
+
         // --- 初始化 Firebase ---
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // --- 主要邏輯 ---
-
-        // 頁面載入後立即執行
+        // --- 頁面啟動邏輯 ---
         document.addEventListener('DOMContentLoaded', async () => {
             const params = new URLSearchParams(window.location.search);
             if (params.has('code') && params.has('state')) {
-                // 如果 URL 帶有 code 和 state，表示是從 LINE 登入後跳轉回來的
                 await handleLineLoginCallback(params.get('code'), params.get('state'));
             } else {
-                // 正常載入頁面，檢查是否有本地端登入記錄
-                const userData = getSession();
-                if (userData) {
-                    console.log('找到 localStorage 中的使用者資料:', userData);
-                    displayUserInfo(userData);
-                    showView('checkin');
+                currentUser = getSession();
+                if (currentUser) {
+                    await setupCheckinPage(params.get('patrolId'));
                 } else {
                     showView('login');
                 }
             }
         });
-
-        // LINE 登入按鈕點擊事件
-        lineLoginBtn.addEventListener('click', () => {
-            const state = generateState();
-            localStorage.setItem('line_login_state', state); // 儲存 state 以供後續驗證
-            const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
-                `response_type=code` +
-                `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
-                `&redirect_uri=${encodeURIComponent(LINE_REDIRECT_URI)}` +
-                `&state=${state}` +
-                `&scope=profile%20openid`;
-            window.location.href = loginUrl;
-        });
         
-        // 登出按鈕點擊事件
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('guimashan_user'); // 清除本地登入記錄
-            window.location.href = window.location.pathname; // 重新整理頁面到登入狀態
-        });
+        // --- 事件監聽 ---
+        checkinBtn.addEventListener('click', handleCheckin);
 
-        // --- 核心功能函式 ---
+        // --- 核心功能 ---
+        
+        async function setupCheckinPage(patrolId) {
+            displayUserInfo(currentUser);
+            let targetPatrolId = patrolId;
 
-        // 處理從 LINE 登入後的回呼
+            // 如果 URL 中沒有巡邏點 ID，則嘗試載入預設的「龜馬山辦公室」
+            if (!targetPatrolId) {
+                checkinStatus.textContent = '未指定巡邏點，載入預設地點...';
+                try {
+                    const q = query(collection(db, "patrols"), where("name", "==", "龜馬山辦公室"));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        const defaultPatrolDoc = querySnapshot.docs[0];
+                        targetPatrolId = defaultPatrolDoc.id;
+                        console.log('成功載入預設巡邏點：龜馬山辦公室');
+                    } else {
+                        patrolPointName.textContent = "預設點「龜馬山辦公室」未建立";
+                        checkinStatus.textContent = '請先至後台新增預設點';
+                        checkinBtn.disabled = true;
+                        checkinBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                        checkinBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        showView('checkin');
+                        return;
+                    }
+                } catch (error) {
+                    console.error("搜尋預設巡邏點時出錯:", error);
+                    patrolPointName.textContent = "讀取預設點失敗";
+                    checkinStatus.textContent = '';
+                    checkinBtn.disabled = true;
+                    checkinBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    checkinBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    showView('checkin');
+                    return;
+                }
+            }
+            
+            // 使用目標 ID 載入巡邏點資料
+            try {
+                const patrolRef = doc(db, 'patrols', targetPatrolId);
+                const patrolSnap = await getDoc(patrolRef);
+                if (patrolSnap.exists()) {
+                    currentPatrol = { id: patrolSnap.id, ...patrolSnap.data() };
+                    patrolPointName.textContent = currentPatrol.name;
+                    checkinStatus.textContent = ''; // 成功後清除狀態訊息
+                } else {
+                    patrolPointName.textContent = "找不到該巡邏點";
+                    checkinBtn.disabled = true;
+                }
+            } catch (error) {
+                console.error("讀取巡邏點資料失敗:", error);
+                patrolPointName.textContent = "讀取資料失敗";
+                checkinBtn.disabled = true;
+            }
+            showView('checkin');
+        }
+
+
+        async function handleCheckin() {
+            checkinBtn.disabled = true;
+            checkinStatus.textContent = '① 正在取得您的 GPS 位置...';
+
+            try {
+                const userPosition = await getUserLocation();
+                checkinStatus.textContent = '② 取得位置成功，計算距離中...';
+                
+                const distance = calculateDistance(
+                    userPosition.latitude, userPosition.longitude,
+                    currentPatrol.location.latitude, currentPatrol.location.longitude
+                );
+                
+                const isManager = ['superadmin', 'admin', 'poweruser'].includes(currentUser.role);
+                const isWithinRange = distance <= currentPatrol.radius;
+
+                if (isManager || isWithinRange) {
+                    checkinStatus.textContent = '③ 驗證通過，正在儲存紀錄...';
+                    await saveCheckinLog(userPosition, distance, isManager);
+                    showResult(true, { distance: distance.toFixed(1), ...userPosition });
+                } else {
+                    showResult(false, { distance: distance.toFixed(1), ...userPosition });
+                }
+            } catch (error) {
+                console.error("簽到失敗:", error);
+                checkinStatus.innerHTML = `❌ <span class="text-red-600">${error.message}</span>`;
+            } finally {
+                checkinBtn.disabled = false;
+            }
+        }
+
+        function getUserLocation() {
+            return new Promise((resolve, reject) => {
+                if (TEST_MODE) {
+                    resolve(currentPatrol.location); return;
+                }
+                if (!navigator.geolocation) {
+                    reject(new Error("您的瀏覽器不支援 GPS 定位。")); return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+                    (error) => {
+                        let message = "無法取得 GPS 位置。";
+                        if (error.code === 1) message = "請允許網站存取您的位置資訊。";
+                        else if (error.code === 2) message = "目前位置無法取得。";
+                        else if (error.code === 3) message = "取得位置逾時。";
+                        reject(new Error(message));
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            });
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI/180; const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180; const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        async function saveCheckinLog(position, distance, isManager) {
+            try {
+                await addDoc(collection(db, 'checkin_logs'), {
+                    userId: currentUser.userId, userName: currentUser.displayName,
+                    patrolId: currentPatrol.id, patrolName: currentPatrol.name,
+                    timestamp: new Date().toISOString(),
+                    location: { latitude: position.latitude, longitude: position.longitude },
+                    distance: distance, isTestMode: TEST_MODE,
+                    isManagerOverride: isManager && distance > currentPatrol.radius
+                });
+            } catch (error) {
+                console.error("儲存簽到紀錄失敗:", error);
+                throw new Error("紀錄儲存失敗，請檢查網路。");
+            }
+        }
+
+        function showResult(isSuccess, data) {
+            let html = '';
+            const timeString = new Date().toLocaleString('zh-TW', { hour12: false });
+            if (isSuccess) {
+                html = `
+                    <div class="message-card">
+                        <h2 class="text-2xl font-bold text-green-600 mb-4">✅ 奉香成功！</h2>
+                        <div class="text-left space-y-2 text-gray-700 bg-gray-50 p-4 rounded-lg">
+                            <p><strong>地點：</strong>${currentPatrol.name}</p>
+                            <p><strong>時間：</strong>${timeString}</p>
+                            <p><strong>座標：</strong>${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}</p>
+                            <p><strong>距離：</strong>${data.distance} 公尺</p>
+                        </div>
+                        <p class="mt-4 text-sm text-gray-500">記錄已上傳至系統。</p>
+                        <button onclick="window.location.reload()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">返回</button>
+                    </div>`;
+            } else {
+                html = `
+                    <div class="message-card">
+                        <h2 class="text-2xl font-bold text-red-600 mb-4">❌ 位置不符</h2>
+                        <p class="mb-4 text-gray-600">您的位置不在巡邏點範圍內。</p>
+                        <div class="text-left text-sm space-y-2 text-gray-700 bg-gray-50 p-4 rounded-lg">
+                            <p><strong>您的座標：</strong>${data.latitude.toFixed(6)}, ${data.longitude.toFixed(6)}</p>
+                            <p><strong>巡邏點座標：</strong>${currentPatrol.location.latitude}, ${currentPatrol.location.longitude}</p>
+                            <p><strong>實際距離：</strong><span class="font-bold text-red-500">${data.distance} 公尺</span></p>
+                            <p><strong>容許誤差：</strong>±${currentPatrol.radius} 公尺</p>
+                        </div>
+                         <p class="mt-4 text-sm text-gray-500">請移動到正確位置後重試。</p>
+                        <button onclick="window.location.reload()" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg btn-retry">重新定位並簽到</button>
+                    </div>`;
+            }
+            resultView.innerHTML = html;
+            showView('result');
+        }
+
+        // --- 登入與輔助函式 (與前版大部分相同) ---
         async function handleLineLoginCallback(code, state) {
             const storedState = localStorage.getItem('line_login_state');
             if (state !== storedState) {
-                alert('登入驗證失敗，請重試。 (State mismatch)');
-                showView('login');
-                return;
+                alert('登入驗證失敗，請重試。 (State mismatch)'); showView('login'); return;
             }
             localStorage.removeItem('line_login_state');
-
             showLoadingMessage('正在驗證 LINE 身分...');
-
             try {
-                // 呼叫我們的後端 API，將 code 傳過去
-                const response = await fetch('/api/line-auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code }),
-                });
-
+                const response = await fetch('/api/line-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }), });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(`LINE 登入失敗: ${errorData.details || response.statusText}`);
                 }
-                
                 const lineProfile = await response.json();
-                
                 showLoadingMessage('正在同步使用者資料...');
-
-                // 檢查/建立使用者於 Firebase
                 const userRef = doc(db, 'users', lineProfile.userId);
                 const userSnap = await getDoc(userRef);
-
                 let userData;
                 if (userSnap.exists()) {
-                    // 使用者已存在，更新最後登入時間和個人資料
                     const existingData = userSnap.data();
                     userData = { ...existingData, lastLoginAt: new Date().toISOString(), displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl };
                     await setDoc(userRef, { lastLoginAt: userData.lastLoginAt, displayName: userData.displayName, pictureUrl: userData.pictureUrl }, { merge: true });
                 } else {
-                    // 新使用者，建立資料並設定預設角色為 'user'
-                    userData = {
-                        userId: lineProfile.userId,
-                        displayName: lineProfile.displayName,
-                        pictureUrl: lineProfile.pictureUrl,
-                        role: 'user',
-                        createdAt: new Date().toISOString(),
-                        lastLoginAt: new Date().toISOString(),
-                    };
+                    userData = { userId: lineProfile.userId, displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl, role: 'user', createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() };
                     await setDoc(userRef, userData);
                 }
-                
+                currentUser = userData;
                 saveSession(userData);
-                displayUserInfo(userData);
-                history.replaceState({}, document.title, window.location.pathname); // 清理 URL
-                showView('checkin');
-
+                const params = new URLSearchParams(window.location.search);
+                history.replaceState({}, document.title, window.location.pathname + (params.has('patrolId') ? `?patrolId=${params.get('patrolId')}` : ''));
+                await setupCheckinPage(params.get('patrolId'));
             } catch (error) {
                 console.error('處理 LINE 登入回呼時發生錯誤:', error);
                 alert(`登入時發生錯誤: ${error.message}`);
                 showView('login');
             }
         }
-        
-        // --- 輔助及 UI 函式 ---
-        
-        function displayUserInfo(userData) {
-            userName.textContent = userData.displayName || '使用者';
-            userPicture.src = userData.pictureUrl || 'https://placehold.co/100x100/E2E8F0/A0AEC0?text=Avatar';
-            userRole.textContent = mapRoleToChinese(userData.role);
-        }
-
-        function saveSession(userData) {
-            localStorage.setItem('guimashan_user', JSON.stringify(userData));
-        }
-
-        function getSession() {
-            const userData = localStorage.getItem('guimashan_user');
-            return userData ? JSON.parse(userData) : null;
-        }
-
-        function showLoadingMessage(message) {
-            loadingSpinner.classList.remove('hidden');
-            mainContent.classList.add('hidden');
-            loadingSpinner.querySelector('p').textContent = message;
-        }
-
+        function displayUserInfo(userData) { userName.textContent = userData.displayName || '使用者'; userPicture.src = userData.pictureUrl || 'https://placehold.co/100x100/E2E8F0/A0AEC0?text=Avatar'; userRole.textContent = mapRoleToChinese(userData.role); }
+        function saveSession(userData) { localStorage.setItem('guimashan_user', JSON.stringify(userData)); }
+        function getSession() { const userData = localStorage.getItem('guimashan_user'); return userData ? JSON.parse(userData) : null; }
+        function showLoadingMessage(message) { loadingSpinner.classList.remove('hidden'); mainContent.classList.add('hidden'); loadingSpinner.querySelector('p').textContent = message; }
         function showView(viewName) {
             loadingSpinner.classList.add('hidden');
             mainContent.classList.remove('hidden');
             loginView.classList.add('hidden');
             checkinView.classList.add('hidden');
+            resultView.classList.add('hidden');
+
             if (viewName === 'login') loginView.classList.remove('hidden');
             else if (viewName === 'checkin') checkinView.classList.remove('hidden');
+            else if (viewName === 'result') resultView.classList.remove('hidden');
         }
-        
-        function mapRoleToChinese(role) {
-            const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
-            return roles[role] || '未知角色';
-        }
-
-        function generateState() {
-            const array = new Uint32Array(8);
-            window.crypto.getRandomValues(array);
-            return Array.from(array, dec => ('0' + dec.toString(16)).substr(-2)).join('');
-        }
+        function mapRoleToChinese(role) { const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' }; return roles[role] || '未知角色'; }
+        function generateState() { const array = new Uint32Array(8); window.crypto.getRandomValues(array); return Array.from(array, dec => ('0' + dec.toString(16)).substr(-2)).join(''); }
+        lineLoginBtn.addEventListener('click', () => { const state = generateState(); localStorage.setItem('line_login_state', state); const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${LINE_LOGIN_CHANNEL_ID}&redirect_uri=${encodeURIComponent(LINE_REDIRECT_URI)}&state=${state}&scope=profile%20openid`; window.location.href = loginUrl; });
+        logoutBtn.addEventListener('click', () => { localStorage.removeItem('guimashan_user'); const params = new URLSearchParams(window.location.search); const patrolId = params.get('patrolId'); window.location.href = window.location.pathname + (patrolId ? `?patrolId=${patrolId}` : ''); });
 
     </script>
 </body>
