@@ -21,12 +21,12 @@
         .btn-line:hover {
             background-color: #05a546;
         }
-        .btn-line:active {
+        .btn-line:active, .btn-checkin:active {
             transform: scale(0.98);
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <div id="loading-spinner" class="text-center">
         <i class="fas fa-spinner fa-spin fa-3x text-gray-500"></i>
@@ -48,8 +48,25 @@
 
         <!-- 簽到主畫面 (登入後顯示) -->
         <div id="checkin-view" class="hidden">
-             <!-- 這裡將會放置登入後的使用者資訊和簽到按鈕 -->
-             <p>成功登入！簽到功能開發中...</p>
+            <div id="user-profile" class="mb-8">
+                <img id="user-picture" src="https://placehold.co/100x100/E2E8F0/A0AEC0?text=Avatar" alt="User Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">您好, <span id="user-name">使用者</span>！</h2>
+                <p class="text-sm text-gray-500">角色：<span id="user-role">載入中...</span></p>
+            </div>
+            
+            <div id="patrol-point-info" class="mb-8 p-4 bg-gray-50 rounded-lg">
+                 <h3 class="text-lg font-semibold text-gray-700">目前巡邏點</h3>
+                 <p id="patrol-point-name" class="text-2xl font-bold text-blue-600">龜馬山辦公室</p>
+            </div>
+
+            <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center text-lg shadow-md transition-transform duration-200 btn-checkin focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
+                <i class="fas fa-map-marker-alt mr-3"></i>
+                取得定位並簽到
+            </button>
+
+            <button id="logout-btn" class="w-full mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
+                登出
+            </button>
         </div>
 
     </main>
@@ -57,13 +74,12 @@
     <script type="module">
         // Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- 設定區 ---
-        // 請將此處的資訊替換成您的 Firebase 設定
+        // !!重要!! 請務必填入您 Firebase 專案的真實設定
         const firebaseConfig = {
-            apiKey: "AIzaSyD... YOUR ...", // 請替換
+            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8", // 請替換
             authDomain: "checkin-29f7f.firebaseapp.com",
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.appspot.com",
@@ -72,8 +88,7 @@
         };
 
         const LINE_LOGIN_CHANNEL_ID = '2008269293';
-        // !!重要!! 這個網址必須與您在 LINE Developers 後台設定的 Callback URL 完全一致
-        const LINE_REDIRECT_URI = 'https://go.guimashan.org.tw/checkin/index.html'; // 暫定為當前頁面，方便開發
+        const LINE_REDIRECT_URI = 'https://go.guimashan.org.tw/checkin/index.html';
 
         // --- DOM 元素 ---
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -81,69 +96,158 @@
         const loginView = document.getElementById('login-view');
         const checkinView = document.getElementById('checkin-view');
         const lineLoginBtn = document.getElementById('line-login-btn');
+        const userPicture = document.getElementById('user-picture');
+        const userName = document.getElementById('user-name');
+        const userRole = document.getElementById('user-role');
+        const logoutBtn = document.getElementById('logout-btn');
         
-        // --- 主要邏輯 ---
-
-        // 1. 初始化 Firebase
+        // --- 初始化 Firebase ---
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // 頁面載入後執行
-        document.addEventListener('DOMContentLoaded', () => {
-            // 檢查 URL 中是否有從 LINE 登入後帶回來的 code
+        // --- 主要邏輯 ---
+
+        // 頁面載入後立即執行
+        document.addEventListener('DOMContentLoaded', async () => {
             const params = new URLSearchParams(window.location.search);
-            if (params.has('code')) {
-                // 如果有 code，代表是從 LINE 登入後跳轉回來的
-                // 此處應處理後續的 token 換取和使用者資料獲取
-                // (下一步驟開發)
-                console.log("從 LINE 返回，授權碼 (code):", params.get('code'));
-                // 顯示簽到畫面 (暫時)
-                showView('checkin');
+            if (params.has('code') && params.has('state')) {
+                // 如果 URL 帶有 code 和 state，表示是從 LINE 登入後跳轉回來的
+                await handleLineLoginCallback(params.get('code'), params.get('state'));
             } else {
-                // 如果沒有 code，就是正常進入頁面
-                // 檢查使用者登入狀態 (暫時先顯示登入按鈕)
-                 showView('login');
+                // 正常載入頁面，檢查是否有本地端登入記錄
+                const userData = getSession();
+                if (userData) {
+                    console.log('找到 localStorage 中的使用者資料:', userData);
+                    displayUserInfo(userData);
+                    showView('checkin');
+                } else {
+                    showView('login');
+                }
             }
         });
 
-
-        // 2. LINE 登入按鈕事件
+        // LINE 登入按鈕點擊事件
         lineLoginBtn.addEventListener('click', () => {
-            // 產生一個隨機字串用於 state 參數，防止 CSRF 攻擊
             const state = generateState();
-            // 將 state 存到 localStorage，以便在跳轉回來時驗證
-            localStorage.setItem('line_login_state', state);
-
-            // 組合 LINE 登入網址
+            localStorage.setItem('line_login_state', state); // 儲存 state 以供後續驗證
             const loginUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
                 `response_type=code` +
                 `&client_id=${LINE_LOGIN_CHANNEL_ID}` +
                 `&redirect_uri=${encodeURIComponent(LINE_REDIRECT_URI)}` +
                 `&state=${state}` +
-                `&scope=profile%20openid%20email`;
-            
-            // 導向到 LINE 登入頁面
+                `&scope=profile%20openid`;
             window.location.href = loginUrl;
         });
+        
+        // 登出按鈕點擊事件
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('guimashan_user'); // 清除本地登入記錄
+            window.location.href = window.location.pathname; // 重新整理頁面到登入狀態
+        });
 
-        // --- 輔助函式 ---
+        // --- 核心功能函式 ---
 
-        // 切換顯示的畫面 (登入/簽到)
+        // 處理從 LINE 登入後的回呼
+        async function handleLineLoginCallback(code, state) {
+            const storedState = localStorage.getItem('line_login_state');
+            if (state !== storedState) {
+                alert('登入驗證失敗，請重試。 (State mismatch)');
+                showView('login');
+                return;
+            }
+            localStorage.removeItem('line_login_state');
+
+            showLoadingMessage('正在驗證 LINE 身分...');
+
+            try {
+                // 呼叫我們的後端 API，將 code 傳過去
+                const response = await fetch('/api/line-auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`LINE 登入失敗: ${errorData.details || response.statusText}`);
+                }
+                
+                const lineProfile = await response.json();
+                
+                showLoadingMessage('正在同步使用者資料...');
+
+                // 檢查/建立使用者於 Firebase
+                const userRef = doc(db, 'users', lineProfile.userId);
+                const userSnap = await getDoc(userRef);
+
+                let userData;
+                if (userSnap.exists()) {
+                    // 使用者已存在，更新最後登入時間和個人資料
+                    const existingData = userSnap.data();
+                    userData = { ...existingData, lastLoginAt: new Date().toISOString(), displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl };
+                    await setDoc(userRef, { lastLoginAt: userData.lastLoginAt, displayName: userData.displayName, pictureUrl: userData.pictureUrl }, { merge: true });
+                } else {
+                    // 新使用者，建立資料並設定預設角色為 'user'
+                    userData = {
+                        userId: lineProfile.userId,
+                        displayName: lineProfile.displayName,
+                        pictureUrl: lineProfile.pictureUrl,
+                        role: 'user',
+                        createdAt: new Date().toISOString(),
+                        lastLoginAt: new Date().toISOString(),
+                    };
+                    await setDoc(userRef, userData);
+                }
+                
+                saveSession(userData);
+                displayUserInfo(userData);
+                history.replaceState({}, document.title, window.location.pathname); // 清理 URL
+                showView('checkin');
+
+            } catch (error) {
+                console.error('處理 LINE 登入回呼時發生錯誤:', error);
+                alert(`登入時發生錯誤: ${error.message}`);
+                showView('login');
+            }
+        }
+        
+        // --- 輔助及 UI 函式 ---
+        
+        function displayUserInfo(userData) {
+            userName.textContent = userData.displayName || '使用者';
+            userPicture.src = userData.pictureUrl || 'https://placehold.co/100x100/E2E8F0/A0AEC0?text=Avatar';
+            userRole.textContent = mapRoleToChinese(userData.role);
+        }
+
+        function saveSession(userData) {
+            localStorage.setItem('guimashan_user', JSON.stringify(userData));
+        }
+
+        function getSession() {
+            const userData = localStorage.getItem('guimashan_user');
+            return userData ? JSON.parse(userData) : null;
+        }
+
+        function showLoadingMessage(message) {
+            loadingSpinner.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+            loadingSpinner.querySelector('p').textContent = message;
+        }
+
         function showView(viewName) {
             loadingSpinner.classList.add('hidden');
             mainContent.classList.remove('hidden');
-
             loginView.classList.add('hidden');
             checkinView.classList.add('hidden');
-
-            if (viewName === 'login') {
-                loginView.classList.remove('hidden');
-            } else if (viewName === 'checkin') {
-                checkinView.classList.remove('hidden');
-            }
+            if (viewName === 'login') loginView.classList.remove('hidden');
+            else if (viewName === 'checkin') checkinView.classList.remove('hidden');
+        }
+        
+        function mapRoleToChinese(role) {
+            const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
+            return roles[role] || '未知角色';
         }
 
-        // 產生用於 OAuth state 的隨機字串
         function generateState() {
             const array = new Uint32Array(8);
             window.crypto.getRandomValues(array);
@@ -153,3 +257,4 @@
     </script>
 </body>
 </html>
+
