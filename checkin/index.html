@@ -63,7 +63,7 @@
             appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
 
-        const lineClientId = '2008269293';
+        const lineClientId = '20082692ud';
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -110,10 +110,7 @@
                 
                 showLoading('正在登入系統...');
                 await signInWithCustomToken(auth, data.token);
-                // onAuthStateChanged 會處理後續流程
-                // 登入成功後，清除 URL 中的 code 和 state 參數
-                window.location.href = window.location.pathname + window.location.search.split('&code=')[0].split('?code=')[0];
-
+                // onAuthStateChanged will handle the rest, including the redirect
             } catch (error) {
                 console.error('Callback 處理失敗:', error);
                 alert(`登入失敗：${error.message}`);
@@ -180,14 +177,23 @@
             const state = urlParams.get('state');
 
             if (user) {
-                // 使用者已登入 Firebase
+                // --- FIX START: Check for redirect URL after login ---
+                const redirectUrl = localStorage.getItem('login_redirect_url');
+                if (redirectUrl) {
+                    localStorage.removeItem('login_redirect_url');
+                    window.location.href = redirectUrl;
+                    return; // Stop execution to allow redirect
+                }
+                // --- FIX END ---
+
+                // If no redirect, show the normal check-in view
                 displayCheckinView(user);
+
             } else {
-                // 使用者未登入 Firebase
+                // User is not logged in to Firebase
                 checkinView.classList.add('hidden');
                 loginView.classList.remove('hidden');
                 
-                // 如果 URL 中有 code，代表是從 LINE 回來的，需要處理
                 if (code && state) {
                     processLineCallback(code, state);
                 }
@@ -195,7 +201,10 @@
         });
 
         document.getElementById('login-btn').addEventListener('click', handleLineRedirect);
-        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            signOut(auth);
+            localStorage.removeItem('login_redirect_url'); // Also clear on manual logout
+        });
 
     </script>
 </body>
