@@ -81,15 +81,17 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { initializeApp as initializeFirebaseApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- 變數定義 ---
-        const TEST_MODE = false; // 開發時可設為 true, 正式上線務必改為 false
+        const TEST_MODE = false;
 
         const firebaseConfig = {
             apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            authDomain: "checkin-2f7f.firebaseapp.com",
+            // --- FIX START: 修正 authDomain ---
+            authDomain: "checkin-29f7f.firebaseapp.com",
+            // --- FIX END ---
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.appspot.com",
             messagingSenderId: "698452461679",
@@ -98,7 +100,7 @@
         
         const lineClientId = '2008269293';
 
-        const app = initializeApp(firebaseConfig);
+        const app = initializeFirebaseApp(firebaseConfig);
         const db = getFirestore(app);
 
         let mainContainer, loginView, checkinView, resultView, loginBtn, checkinBtn,
@@ -377,9 +379,7 @@
             }
         }
 
-        // --- FIX START: 重新命名我們自己的初始化函式 ---
         async function startApp() {
-        // --- FIX END ---
             assignDomElements();
             log('應用程式初始化...');
             const urlParams = new URLSearchParams(window.location.search);
@@ -426,7 +426,7 @@
             } else {
                 showView(loginView);
             }
-             // 將事件監聽器移至 DOM 元素賦值後
+            
             loginBtn.addEventListener('click', handleLineLogin);
             checkinBtn.addEventListener('click', performCheckin);
             toggleLogBtn.addEventListener('click', () => {
@@ -474,10 +474,7 @@
             }
         }
         
-        // --- 啟動 ---
-        // --- FIX START: 呼叫我們自己重新命名的函式 ---
         document.addEventListener('DOMContentLoaded', startApp);
-        // --- FIX END ---
 
     </script>
 </body>
