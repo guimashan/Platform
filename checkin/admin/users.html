@@ -8,107 +8,98 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
-        .modal { display: none; }
-        .modal.is-open { display: flex; }
-        .table-auto th, .table-auto td { white-space: nowrap; }
+        .modal-backdrop { background-color: rgba(0,0,0,0.5); }
     </style>
 </head>
 <body class="bg-gray-100">
-
-    <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-gray-800 text-white p-4 hidden md:block">
-            <h1 class="text-2xl font-bold mb-8">管理系統</h1>
-            <nav>
-                <ul>
-                    <li class="mb-4"><a href="index.html" class="flex items-center p-2 rounded hover:bg-gray-700"><i class="fas fa-chart-line w-6 mr-2"></i>簽到記錄</a></li>
-                    <li class="mb-4"><a href="patrols.html" class="flex items-center p-2 rounded hover:bg-gray-700"><i class="fas fa-map-marked-alt w-6 mr-2"></i>巡邏點管理</a></li>
-                    <li class="mb-4"><a href="users.html" class="flex items-center p-2 rounded bg-gray-900"><i class="fas fa-users w-6 mr-2"></i>使用者管理</a></li>
-                    <li class="mt-8 border-t border-gray-700 pt-4"><a href="../index.html" class="flex items-center p-2 rounded hover:bg-gray-700"><i class="fas fa-home w-6 mr-2"></i>返回簽到頁</a></li>
-                </ul>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 p-4 md:p-8">
-            <header class="mb-6">
-                <h2 class="text-2xl md:text-3xl font-bold text-gray-800">👥 使用者管理</h2>
-            </header>
-
-            <!-- Stats Cards -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
-                    <div class="bg-blue-100 p-3 rounded-full mr-4"><i class="fas fa-users text-blue-500 text-2xl"></i></div>
-                    <div>
-                        <p class="text-gray-500 text-sm">總使用者數</p>
-                        <p id="total-users" class="text-2xl font-bold">0</p>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
-                    <div class="bg-green-100 p-3 rounded-full mr-4"><i class="fas fa-user-shield text-green-500 text-2xl"></i></div>
-                    <div>
-                        <p class="text-gray-500 text-sm">管理員人數</p>
-                        <p id="admin-users" class="text-2xl font-bold">0</p>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-md flex items-center">
-                     <div class="bg-yellow-100 p-3 rounded-full mr-4"><i class="fas fa-user text-yellow-500 text-2xl"></i></div>
-                    <div>
-                        <p class="text-gray-500 text-sm">一般使用者</p>
-                        <p id="general-users" class="text-2xl font-bold">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Users Table -->
-            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                 <table class="table-auto w-full text-left">
-                    <thead>
-                        <tr class="border-b">
-                            <th class="p-3">使用者</th>
-                            <th class="p-3">角色</th>
-                            <th class="p-3 hidden md:table-cell">註冊時間</th>
-                            <th class="p-3 hidden lg:table-cell">最後登入</th>
-                            <th class="p-3">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-tbody">
-                        <tr><td colspan="5" class="text-center p-8 text-gray-500">正在檢查登入狀態...</td></tr>
-                    </tbody>
-                 </table>
-            </div>
-        </main>
-    </div>
-
-    <!-- Modal for Edit Role -->
-    <div id="role-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-            <h3 class="text-xl font-bold mb-4">設定角色</h3>
-            <p class="mb-4">正在為 <strong id="modal-user-name"></strong> 設定角色。</p>
-            <form id="role-form">
-                <input type="hidden" id="modal-user-id">
-                <div class="mb-6">
-                    <label for="role-select" class="block text-gray-700 text-sm font-bold mb-2">選擇新角色</label>
-                    <select id="role-select" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                        <option value="user">工作人員/工作同仁</option>
-                        <option value="poweruser">管理者</option>
-                        <option value="admin">系統管理員</option>
-                        <option value="superadmin">最高系統管理員</option>
-                    </select>
-                </div>
-                <div class="flex items-center justify-end">
-                    <button type="button" id="cancel-role-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded mr-2">取消</button>
-                    <button type="submit" id="save-role-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">儲存</button>
-                </div>
-            </form>
+    <div id="loading-overlay" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="flex flex-col items-center">
+            <i class="fas fa-spinner fa-spin text-blue-600 text-4xl"></i>
+            <p class="mt-4 text-gray-600">正在驗證身分...</p>
         </div>
     </div>
 
+    <div id="app-container" class="hidden">
+        <div class="flex h-screen bg-gray-100">
+            <!-- Sidebar -->
+            <div class="w-64 bg-white shadow-md">
+                <div class="p-6">
+                    <h1 class="text-2xl font-bold text-gray-800">管理系統</h1>
+                </div>
+                <nav class="mt-6">
+                    <a href="./index.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
+                        <i class="fas fa-clipboard-list w-6 text-center"></i><span class="mx-4">簽到記錄</span>
+                    </a>
+                    <a href="./patrols.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
+                        <i class="fas fa-map-marked-alt w-6 text-center"></i><span class="mx-4">巡邏點管理</span>
+                    </a>
+                    <a href="./users.html" class="flex items-center px-6 py-3 text-white bg-blue-600">
+                        <i class="fas fa-users-cog w-6 text-center"></i><span class="mx-4">使用者管理</span>
+                    </a>
+                    <a href="../" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
+                         <i class="fas fa-home w-6 text-center"></i><span class="mx-4">返回簽到頁</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <header class="flex justify-between items-center p-6 bg-white border-b">
+                    <h2 class="text-2xl font-semibold text-gray-700">使用者管理</h2>
+                </header>
+
+                <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                    <div id="stats-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6"></div>
+                    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                        <table class="min-w-full leading-normal">
+                            <thead>
+                                <tr>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">使用者</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">角色</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">註冊時間</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">最後登入</th>
+                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- User rows will be inserted here -->
+                            </tbody>
+                        </table>
+                         <div id="users-loading" class="text-center py-10">
+                            <i class="fas fa-spinner fa-spin text-gray-500 text-3xl"></i>
+                            <p class="mt-2 text-gray-600">正在載入使用者...</p>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Role Modal -->
+    <div id="role-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-40">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+            <h3 class="text-2xl font-bold mb-4">設定角色</h3>
+            <p class="mb-4">正在為 <strong id="modal-user-name"></strong> 設定角色。</p>
+            <input type="hidden" id="modal-user-id">
+            <div class="space-y-2">
+                <select id="role-select" class="block appearance-none w-full bg-white border border-gray-400 hover:border-gray-500 px-4 py-2 pr-8 rounded shadow leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="user">工作人員/工作同仁</option>
+                    <option value="poweruser">管理者</option>
+                    <option value="admin">系統管理員</option>
+                    <option value="superadmin">最高系統管理員</option>
+                </select>
+            </div>
+            <div class="flex items-center justify-end mt-6">
+                <button type="button" id="cancel-role-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2">取消</button>
+                <button type="button" id="save-role-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">儲存變更</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
@@ -120,141 +111,160 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // DOM Elements
-        const usersTbody = document.getElementById('users-tbody');
-        const totalUsersEl = document.getElementById('total-users');
-        const adminUsersEl = document.getElementById('admin-users');
-        const generalUsersEl = document.getElementById('general-users');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const appContainer = document.getElementById('app-container');
+        const usersTableBody = document.getElementById('users-table-body');
+        const usersLoading = document.getElementById('users-loading');
+        const statsCards = document.getElementById('stats-cards');
         const roleModal = document.getElementById('role-modal');
-        const roleForm = document.getElementById('role-form');
         const modalUserName = document.getElementById('modal-user-name');
         const modalUserId = document.getElementById('modal-user-id');
         const roleSelect = document.getElementById('role-select');
         const cancelRoleBtn = document.getElementById('cancel-role-btn');
         const saveRoleBtn = document.getElementById('save-role-btn');
 
-        let allUsersData = [];
-        let currentAdmin = null;
+        let currentAdminUser = null;
+        let usersCache = [];
+        const rolesMap = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
+        const roleColors = { user: 'bg-gray-200 text-gray-800', poweruser: 'bg-blue-200 text-blue-800', admin: 'bg-green-200 text-green-800', superadmin: 'bg-purple-200 text-purple-800' };
 
-        function mapRoleToChinese(role) {
-            const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
-            return roles[role] || '未知角色';
+        function openRoleModal(user) {
+            modalUserName.textContent = user.displayName;
+            modalUserId.value = user.id;
+            roleSelect.value = user.role;
+            roleModal.classList.remove('hidden');
         }
 
-        function formatTimestamp(isoString) {
-            if (!isoString) return 'N/A';
-            return new Date(isoString).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\//g, '-');
-        }
-
-        function attachUserListener() {
-            // Real-time listener for users
-            onSnapshot(collection(db, 'users'), (snapshot) => {
-                if (snapshot.empty) {
-                    usersTbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">沒有任何使用者資料。</td></tr>';
-                    return;
-                }
-                
-                allUsersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Refresh current admin data from the live list
-                const localAdminData = JSON.parse(localStorage.getItem('guimashan_user'));
-                if(localAdminData) {
-                    currentAdmin = allUsersData.find(u => u.id === localAdminData.userId);
-                }
-
-
-                usersTbody.innerHTML = allUsersData.map(user => {
-                    const isCurrentUser = currentAdmin && user.id === currentAdmin.id;
-                    const targetIsSuperAdmin = user.role === 'superadmin';
-                    const adminIsAdmin = currentAdmin && currentAdmin.role === 'admin';
-                    const canEdit = !isCurrentUser && !(adminIsAdmin && targetIsSuperAdmin);
-
-                    return `
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="p-3">
-                                <div class="flex items-center">
-                                    <img src="${user.pictureUrl || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full mr-3">
-                                    <span class="font-medium">${user.displayName || '未命名'}</span>
-                                </div>
-                            </td>
-                            <td class="p-3">${mapRoleToChinese(user.role)}</td>
-                            <td class="p-3 hidden md:table-cell">${formatTimestamp(user.createdAt)}</td>
-                            <td class="p-3 hidden lg:table-cell">${formatTimestamp(user.lastLoginAt)}</td>
-                            <td class="p-3">
-                                ${canEdit ? `<button class="edit-role-btn bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-3 rounded" data-userid="${user.id}">設定角色</button>` : `<span class="text-xs text-gray-400">無法編輯</span>`}
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-
-                // Update stats
-                const total = allUsersData.length;
-                const admins = allUsersData.filter(u => ['poweruser', 'admin', 'superadmin'].includes(u.role)).length;
-                totalUsersEl.textContent = total;
-                adminUsersEl.textContent = admins;
-                generalUsersEl.textContent = total - admins;
-            });
-        }
-        
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // User is signed in.
-                attachUserListener();
-            } else {
-                // User is signed out.
-                usersTbody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-500">權限不足或尚未登入。請先從主頁登入。<br><a href="../index.html" class="text-blue-500 underline mt-2 inline-block">點此返回簽到主頁</a></td></tr>`;
-                totalUsersEl.textContent = 0;
-                adminUsersEl.textContent = 0;
-                generalUsersEl.textContent = 0;
-            }
-        });
-
-
-        // Modal Control
-        function openRoleModal(userId) {
-            const user = allUsersData.find(u => u.id === userId);
-            if (user) {
-                modalUserName.textContent = user.displayName;
-                modalUserId.value = user.id;
-                roleSelect.value = user.role;
-                roleModal.classList.add('is-open');
-            }
-        }
         function closeRoleModal() {
-            roleModal.classList.remove('is-open');
+            roleModal.classList.add('hidden');
         }
 
-        usersTbody.addEventListener('click', (e) => {
-            if (e.target.classList.contains('edit-role-btn')) {
-                const userId = e.target.dataset.userid;
-                openRoleModal(userId);
-            }
-        });
-
-        cancelRoleBtn.addEventListener('click', closeRoleModal);
-
-        // Form Submission
-        roleForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            saveRoleBtn.disabled = true;
-            saveRoleBtn.textContent = '儲存中...';
-
+        async function handleSaveRole() {
             const userId = modalUserId.value;
             const newRole = roleSelect.value;
-            
+            saveRoleBtn.disabled = true;
+            saveRoleBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 儲存中...';
+
             try {
                 const userRef = doc(db, 'users', userId);
-                await setDoc(userRef, { role: newRole }, { merge: true });
+                await updateDoc(userRef, { role: newRole });
                 closeRoleModal();
             } catch (error) {
                 console.error("更新角色失敗:", error);
-                alert("更新失敗，請檢查網路連線。");
+                alert('更新角色失敗，請稍後再試。');
             } finally {
                 saveRoleBtn.disabled = false;
-                saveRoleBtn.textContent = '儲存';
+                saveRoleBtn.textContent = '儲存變更';
+            }
+        }
+        
+        function renderUsers(users) {
+            usersLoading.classList.add('hidden');
+            usersTableBody.innerHTML = '';
+
+            const sortedUsers = users.sort((a, b) => (b.lastLoginAt?.toDate() || 0) - (a.lastLoginAt?.toDate() || 0));
+
+            sortedUsers.forEach(user => {
+                const tr = document.createElement('tr');
+                const createdAt = user.createdAt?.toDate() ? user.createdAt.toDate().toLocaleDateString('zh-TW') : 'N/A';
+                const lastLoginAt = user.lastLoginAt?.toDate() ? user.lastLoginAt.toDate().toLocaleString('zh-TW') : 'N/A';
+                
+                const isCurrentUser = user.id === currentAdminUser.uid;
+                const canEdit = !isCurrentUser && !(currentAdminUser.role === 'admin' && user.role === 'superadmin');
+
+                tr.innerHTML = `
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 w-10 h-10">
+                                <img class="w-full h-full rounded-full" src="${user.pictureUrl}" alt="" />
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-gray-900 whitespace-no-wrap">${user.displayName}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <span class="relative inline-block px-3 py-1 font-semibold leading-tight rounded-full ${roleColors[user.role] || 'bg-gray-200 text-gray-800'}">
+                            <span class="relative">${rolesMap[user.role] || '未知'}</span>
+                        </span>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <p class="text-gray-900 whitespace-no-wrap">${createdAt}</p>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                        <p class="text-gray-900 whitespace-no-wrap">${lastLoginAt}</p>
+                    </td>
+                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
+                        <button data-id="${user.id}" data-action="edit-role" class="text-indigo-600 hover:text-indigo-900 disabled:text-gray-400 disabled:cursor-not-allowed" ${canEdit ? '' : 'disabled'}>
+                            設定角色
+                        </button>
+                    </td>
+                `;
+                usersTableBody.appendChild(tr);
+            });
+        }
+        
+        function updateStats(users) {
+             const total = users.length;
+             const admins = users.filter(u => ['poweruser', 'admin', 'superadmin'].includes(u.role)).length;
+             const regularUsers = total - admins;
+             statsCards.innerHTML = `
+                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">總使用者數</h4><p class="text-3xl font-bold">${total}</p></div>
+                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">管理員人數</h4><p class="text-3xl font-bold">${admins}</p></div>
+                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">一般使用者</h4><p class="text-3xl font-bold">${regularUsers}</p></div>
+             `;
+        }
+
+        function initializeAdminApp() {
+            onSnapshot(collection(db, "users"), (snapshot) => {
+                usersCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderUsers(usersCache);
+                updateStats(usersCache);
+            }, (error) => {
+                console.error("監聽使用者失敗:", error);
+                usersLoading.innerHTML = `<p class="text-red-500">無法載入使用者資料。</p>`;
+            });
+
+            usersTableBody.addEventListener('click', e => {
+                if (e.target.dataset.action === 'edit-role') {
+                    const userId = e.target.dataset.id;
+                    const userToEdit = usersCache.find(u => u.id === userId);
+                    if (userToEdit) openRoleModal(userToEdit);
+                }
+            });
+            
+            cancelRoleBtn.addEventListener('click', closeRoleModal);
+            saveRoleBtn.addEventListener('click', handleSaveRole);
+            roleModal.addEventListener('click', e => {
+                if(e.target === roleModal) closeRoleModal();
+            });
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentAdminUser = { uid: user.uid };
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
+                
+                if (userSnap.exists()) {
+                    currentAdminUser.role = userSnap.data().role;
+                    if (['poweruser', 'admin', 'superadmin'].includes(currentAdminUser.role)) {
+                        loadingOverlay.classList.add('hidden');
+                        appContainer.classList.remove('hidden');
+                        initializeAdminApp();
+                    } else {
+                        localStorage.setItem('login_redirect_url', window.location.href);
+                        window.location.href = `${window.location.origin}/checkin/`;
+                    }
+                } else {
+                     window.location.href = `${window.location.origin}/checkin/`;
+                }
+            } else {
+                localStorage.setItem('login_redirect_url', window.location.href);
+                window.location.href = `${window.location.origin}/checkin/`;
             }
         });
     </script>
