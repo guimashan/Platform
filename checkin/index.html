@@ -63,7 +63,9 @@
             appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
 
-        const lineClientId = '20082692ud';
+        // --- FIX START: Corrected LINE Client ID ---
+        const lineClientId = '2008269293';
+        // --- FIX END ---
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -82,7 +84,8 @@
         function handleLineRedirect() {
             const state = Date.now().toString();
             localStorage.setItem('line_login_state', state);
-            const redirectUri = window.location.origin + window.location.pathname;
+            // This path must exactly match the one registered in LINE Dev Console
+            const redirectUri = `${window.location.origin}/checkin/`; 
             const scope = 'profile openid';
             const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
             window.location.href = authUrl;
@@ -92,14 +95,14 @@
             const localState = localStorage.getItem('line_login_state');
             if (state !== localState) {
                 alert('登入驗證失敗，請重試。');
-                window.location.href = window.location.pathname;
+                window.location.href = '/checkin/';
                 return;
             }
             localStorage.removeItem('line_login_state');
             showLoading('正在驗證 LINE 身分...');
 
             try {
-                const redirectUri = window.location.origin + window.location.pathname;
+                const redirectUri = `${window.location.origin}/checkin/`;
                 const response = await fetch('/api/line-auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -114,7 +117,7 @@
             } catch (error) {
                 console.error('Callback 處理失敗:', error);
                 alert(`登入失敗：${error.message}`);
-                window.location.href = window.location.pathname;
+                window.location.href = '/checkin/';
             }
         }
         
@@ -177,16 +180,19 @@
             const state = urlParams.get('state');
 
             if (user) {
-                // --- FIX START: Check for redirect URL after login ---
                 const redirectUrl = localStorage.getItem('login_redirect_url');
                 if (redirectUrl) {
                     localStorage.removeItem('login_redirect_url');
-                    window.location.href = redirectUrl;
-                    return; // Stop execution to allow redirect
+                    // Clean the URL before redirecting to the admin page
+                    const cleanUrl = redirectUrl.split('?')[0]; 
+                    window.location.href = cleanUrl;
+                    return; 
                 }
-                // --- FIX END ---
-
-                // If no redirect, show the normal check-in view
+                
+                // If no redirect, clean the URL of any LINE params and show the check-in view
+                if (code || state) {
+                    window.history.replaceState({}, document.title, "/checkin/");
+                }
                 displayCheckinView(user);
 
             } else {
@@ -203,7 +209,7 @@
         document.getElementById('login-btn').addEventListener('click', handleLineRedirect);
         document.getElementById('logout-btn').addEventListener('click', () => {
             signOut(auth);
-            localStorage.removeItem('login_redirect_url'); // Also clear on manual logout
+            localStorage.removeItem('login_redirect_url');
         });
 
     </script>
