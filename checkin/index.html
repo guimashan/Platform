@@ -25,7 +25,9 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
     <div id="main-container" class="w-full max-w-md">
+        <!-- 主卡片 -->
         <div id="app-card" class="bg-white rounded-xl shadow-lg p-6 md:p-8 text-center transition-all duration-300">
+            <!-- 登入畫面 -->
             <div id="login-view">
                 <h1 class="text-2xl font-bold text-gray-800 mb-2">奉香簽到系統</h1>
                 <p class="text-gray-500 mb-8">龜馬山紫皇天乙真慶宮</p>
@@ -35,6 +37,7 @@
                 <p class="text-xs text-gray-400 mt-6">💡 建議使用 Chrome 或 Safari 瀏覽器</p>
             </div>
 
+            <!-- 簽到畫面 -->
             <div id="checkin-view" class="hidden">
                  <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-800">奉香簽到</h1>
@@ -66,9 +69,11 @@
                 </button>
             </div>
 
+            <!-- 結果畫面 -->
             <div id="result-view" class="hidden"></div>
         </div>
         
+        <!-- Log Viewer -->
         <div id="log-viewer" class="mt-4 hidden">
              <button id="toggle-log-btn" class="text-sm text-gray-500 hover:text-gray-700 mb-2">顯示執行日誌</button>
              <div id="log-container" class="hidden"></div>
@@ -84,7 +89,7 @@
 
         const firebaseConfig = {
             apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            authDomain: "checkin-29f7f.firebaseapp.com",
+            authDomain: "checkin-2f7f.firebaseapp.com",
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.appspot.com",
             messagingSenderId: "698452461679",
@@ -96,36 +101,41 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // DOM Elements
-        const mainContainer = document.getElementById('main-container');
-        const loginView = document.getElementById('login-view');
-        const checkinView = document.getElementById('checkin-view');
-        const resultView = document.getElementById('result-view');
-        const loginBtn = document.getElementById('login-btn');
-        const checkinBtn = document.getElementById('checkin-btn');
-        const userAvatar = document.getElementById('user-avatar');
-        const userName = document.getElementById('user-name');
-        const userRole = document.getElementById('user-role');
-        const patrolName = document.getElementById('patrol-name');
-        const patrolInfo = document.getElementById('patrol-info');
-        const loadingPatrol = document.getElementById('loading-patrol');
-        const testModeIndicator = document.getElementById('test-mode-indicator');
-        const logViewer = document.getElementById('log-viewer');
-        const toggleLogBtn = document.getElementById('toggle-log-btn');
-        const logContainer = document.getElementById('log-container');
+        let mainContainer, loginView, checkinView, resultView, loginBtn, checkinBtn,
+            userAvatar, userName, userRole, patrolName, patrolInfo, loadingPatrol,
+            testModeIndicator, logViewer, toggleLogBtn, logContainer;
 
         let currentUser = null;
         let currentPatrol = null;
+
+        function assignDomElements() {
+            mainContainer = document.getElementById('main-container');
+            loginView = document.getElementById('login-view');
+            checkinView = document.getElementById('checkin-view');
+            resultView = document.getElementById('result-view');
+            loginBtn = document.getElementById('login-btn');
+            checkinBtn = document.getElementById('checkin-btn');
+            userAvatar = document.getElementById('user-avatar');
+            userName = document.getElementById('user-name');
+            userRole = document.getElementById('user-role');
+            patrolName = document.getElementById('patrol-name');
+            patrolInfo = document.getElementById('patrol-info');
+            loadingPatrol = document.getElementById('loading-patrol');
+            testModeIndicator = document.getElementById('test-mode-indicator');
+            logViewer = document.getElementById('log-viewer');
+            toggleLogBtn = document.getElementById('toggle-log-btn');
+            logContainer = document.getElementById('log-container');
+        }
         
-        // --- LOGGING ---
         function log(message) {
             console.log(message);
-            const time = new Date().toLocaleTimeString();
-            logContainer.innerHTML += `[${time}] ${message}\n`;
-            logContainer.scrollTop = logContainer.scrollHeight;
+            if (logContainer) {
+                const time = new Date().toLocaleTimeString();
+                logContainer.innerHTML += `[${time}] ${message}\n`;
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
         }
 
-        // --- 介面控制 ---
         function showView(view) {
             loginView.classList.add('hidden');
             checkinView.classList.add('hidden');
@@ -142,7 +152,6 @@
             `;
         }
 
-        // --- LINE 登入邏輯 ---
         async function handleLineLogin() {
             log('開始 LINE 登入流程...');
             const state = Date.now().toString();
@@ -167,27 +176,21 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    // --- FIX START: 顯示後端回傳的詳細錯誤 ---
                     const errorMessage = `LINE 登入失敗: ${data.details || data.error || '未知的後端錯誤'}`;
                     throw new Error(errorMessage);
-                    // --- FIX END ---
                 }
                 
                 log('後端 API 驗證成功，取得使用者資料。');
                 const { userId, displayName, pictureUrl } = data;
                 
-                // 檢查或建立 Firebase 使用者
                 await checkOrCreateUser(userId, displayName, pictureUrl);
                 
-                // 清理 URL 並重新載入
                 window.location.replace(window.location.pathname + window.location.search.split('&code=')[0].split('?code=')[0]);
 
             } catch (error) {
                 console.error('登入處理失敗:', error);
-                // --- FIX START: 顯示更詳細的錯誤訊息 ---
                 alert(`登入時發生錯誤：\n${error.message}`);
-                // --- FIX END ---
-                showView(loginView); 
+                window.location.href = window.location.origin + window.location.pathname;
             }
         }
         
@@ -205,7 +208,7 @@
                 await setDoc(userRef, {
                     displayName,
                     pictureUrl,
-                    role: 'user', // 新使用者預設為 user
+                    role: 'user', 
                     createdAt: now,
                     lastLoginAt: now
                 });
@@ -214,10 +217,9 @@
             localStorage.setItem('guimashan_user', JSON.stringify({ userId, displayName, pictureUrl }));
         }
 
-        // --- 簽到邏輯 ---
         function haversineDistance(coords1, coords2) {
             function toRad(x) { return x * Math.PI / 180; }
-            const R = 6371e3; // metres
+            const R = 6371e3; 
             const φ1 = toRad(coords1.latitude);
             const φ2 = toRad(coords2.latitude);
             const Δφ = toRad(coords2.latitude - coords1.latitude);
@@ -305,7 +307,6 @@
             log('開始簽到流程...');
 
             try {
-                // 管理員免驗證或測試模式
                 const isAdminBypass = ['poweruser', 'admin', 'superadmin'].includes(currentUser.role);
                 
                 let userCoords;
@@ -318,7 +319,7 @@
                         longitude: currentPatrol.location.lng,
                     };
                     log(`免驗證模式，使用巡邏點座標: ${userCoords.latitude}, ${userCoords.longitude}`);
-                    isTestRecord = TEST_MODE; // 只有 TEST_MODE 才標記為測試
+                    isTestRecord = TEST_MODE;
                 } else {
                     log('請求真實 GPS 位置...');
                     userCoords = await getUserPosition();
@@ -338,7 +339,6 @@
                     }
                 }
                 
-                // 儲存到 Firebase
                 log('驗證成功，準備寫入 Firebase...');
                 const logData = {
                     userId: currentUser.userId,
@@ -377,8 +377,10 @@
             }
         }
 
-        // --- 初始化邏輯 ---
-        async function initializeApp() {
+        // --- FIX START: 重新命名我們自己的初始化函式 ---
+        async function startApp() {
+        // --- FIX END ---
+            assignDomElements();
             log('應用程式初始化...');
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -403,7 +405,7 @@
                 const userRef = doc(db, "users", userData.userId);
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
-                    currentUser = { id: userSnap.id, ...userSnap.data(), userId: userSnap.id }; // 補齊 userId
+                    currentUser = { id: userSnap.id, ...userSnap.data(), userId: userSnap.id };
                     
                     userAvatar.src = currentUser.pictureUrl;
                     userName.textContent = `您好，${currentUser.displayName}！`;
@@ -413,7 +415,6 @@
                     showView(checkinView);
                     logViewer.classList.remove('hidden');
                     
-                    // 載入巡邏點
                     const patrolId = urlParams.get('patrolId');
                     await loadPatrolPoint(patrolId);
 
@@ -425,6 +426,13 @@
             } else {
                 showView(loginView);
             }
+             // 將事件監聽器移至 DOM 元素賦值後
+            loginBtn.addEventListener('click', handleLineLogin);
+            checkinBtn.addEventListener('click', performCheckin);
+            toggleLogBtn.addEventListener('click', () => {
+                logContainer.classList.toggle('hidden');
+                toggleLogBtn.textContent = logContainer.classList.contains('hidden') ? '顯示執行日誌' : '隱藏執行日誌';
+            });
         }
         
         async function loadPatrolPoint(patrolId) {
@@ -466,18 +474,12 @@
             }
         }
         
-        // --- 事件監聽 ---
-        loginBtn.addEventListener('click', handleLineLogin);
-        checkinBtn.addEventListener('click', performCheckin);
-        toggleLogBtn.addEventListener('click', () => {
-            logContainer.classList.toggle('hidden');
-            toggleLogBtn.textContent = logContainer.classList.contains('hidden') ? '顯示執行日誌' : '隱藏執行日誌';
-        });
-        
         // --- 啟動 ---
-        if(TEST_MODE) testModeIndicator.classList.remove('hidden');
-        initializeApp();
+        // --- FIX START: 呼叫我們自己重新命名的函式 ---
+        document.addEventListener('DOMContentLoaded', startApp);
+        // --- FIX END ---
 
     </script>
 </body>
 </html>
+
