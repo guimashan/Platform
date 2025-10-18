@@ -6,359 +6,67 @@
     <title>管理後台 - 巡邏點管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
-        .modal-backdrop { background-color: rgba(0,0,0,0.5); }
-    </style>
+    <style> body { font-family: 'Inter', 'Noto Sans TC', sans-serif; } .modal-backdrop { background-color: rgba(0,0,0,0.5); } </style>
 </head>
 <body class="bg-gray-100">
     <div id="loading-overlay" class="fixed inset-0 bg-white flex items-center justify-center z-50">
         <div class="flex flex-col items-center">
-            <i class="fas fa-spinner fa-spin text-blue-600 text-4xl"></i>
-            <p class="mt-4 text-gray-600">正在驗證身分...</p>
+            <i class="fas fa-spinner fa-spin text-blue-600 text-4xl"></i><p class="mt-4 text-gray-600">正在驗證身分...</p>
         </div>
     </div>
-
     <div id="app-container" class="hidden">
         <div class="flex h-screen bg-gray-100">
-            <!-- Sidebar -->
             <div class="w-64 bg-white shadow-md">
-                <div class="p-6">
-                    <h1 class="text-2xl font-bold text-gray-800">管理系統</h1>
-                </div>
+                <div class="p-6"><h1 class="text-2xl font-bold text-gray-800">管理系統</h1></div>
                 <nav class="mt-6">
-                    <a href="/checkin/admin/index.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                        <i class="fas fa-clipboard-list w-6 text-center"></i><span class="mx-4">簽到記錄</span>
-                    </a>
-                    <a href="/checkin/admin/patrols.html" class="flex items-center px-6 py-3 text-white bg-blue-600">
-                        <i class="fas fa-map-marked-alt w-6 text-center"></i><span class="mx-4">巡邏點管理</span>
-                    </a>
-                    <a href="/checkin/admin/users.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                        <i class="fas fa-users-cog w-6 text-center"></i><span class="mx-4">使用者管理</span>
-                    </a>
-                    <a href="/checkin/" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                         <i class="fas fa-home w-6 text-center"></i><span class="mx-4">返回簽到頁</span>
-                    </a>
+                    <a href="/checkin/admin/index.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-clipboard-list w-6 text-center"></i><span class="mx-4">簽到記錄</span></a>
+                    <a href="/checkin/admin/patrols.html" class="flex items-center px-6 py-3 text-white bg-blue-600"><i class="fas fa-map-marked-alt w-6 text-center"></i><span class="mx-4">巡邏點管理</span></a>
+                    <a href="/checkin/admin/users.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-users-cog w-6 text-center"></i><span class="mx-4">使用者管理</span></a>
+                    <a href="/checkin/" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-home w-6 text-center"></i><span class="mx-4">返回簽到頁</span></a>
                 </nav>
             </div>
-
-            <!-- Main Content -->
             <div class="flex-1 flex flex-col overflow-hidden">
                 <header class="flex justify-between items-center p-6 bg-white border-b">
                     <h2 class="text-2xl font-semibold text-gray-700">巡邏點管理</h2>
-                     <button id="add-patrol-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                        <i class="fas fa-plus mr-2"></i>新增巡邏點
-                    </button>
+                    <button id="add-patrol-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-plus mr-2"></i>新增巡邏點</button>
                 </header>
-
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <div id="patrols-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <!-- Patrol cards will be inserted here -->
-                    </div>
-                     <div id="patrols-loading" class="text-center py-10">
-                        <i class="fas fa-spinner fa-spin text-gray-500 text-3xl"></i>
-                        <p class="mt-2 text-gray-600">正在載入巡邏點...</p>
-                    </div>
+                    <div id="patrols-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                    <div id="patrols-loading" class="text-center py-10"><i class="fas fa-spinner fa-spin text-gray-500 text-3xl"></i><p class="mt-2 text-gray-600">正在載入巡邏點...</p></div>
                 </main>
             </div>
         </div>
     </div>
-    
-    <!-- Modal -->
     <div id="patrol-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center hidden z-40">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" onclick="event.stopPropagation()">
-            <h3 id="modal-title" class="text-2xl font-bold mb-4">新增巡邏點</h3>
+            <h3 id="modal-title" class="text-2xl font-bold mb-4"></h3>
             <div id="modal-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"></div>
-            <form id="patrol-form">
-                <input type="hidden" id="patrol-id">
-                <div class="mb-4">
-                    <label for="patrol-name" class="block text-gray-700 text-sm font-bold mb-2">巡邏點名稱</label>
-                    <input type="text" id="patrol-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label for="latitude" class="block text-gray-700 text-sm font-bold mb-2">緯度 (Latitude)</label>
-                        <input type="text" id="latitude" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                    </div>
-                    <div>
-                        <label for="longitude" class="block text-gray-700 text-sm font-bold mb-2">經度 (Longitude)</label>
-                        <input type="text" id="longitude" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                    </div>
-                </div>
-                <div class="mb-6">
-                    <label for="tolerance" class="block text-gray-700 text-sm font-bold mb-2">容許誤差 (公尺)</label>
-                    <input type="number" id="tolerance" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                </div>
-                <div class="flex items-center justify-end">
-                    <button type="button" id="cancel-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2">取消</button>
-                    <button type="submit" id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">儲存</button>
-                </div>
-            </form>
+            <form id="patrol-form"><input type="hidden" id="patrol-id"><div class="mb-4"><label for="patrol-name" class="block text-gray-700 text-sm font-bold mb-2">巡邏點名稱</label><input type="text" id="patrol-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" required></div><div class="grid grid-cols-2 gap-4 mb-4"><div><label for="latitude" class="block text-gray-700 text-sm font-bold mb-2">緯度</label><input type="text" id="latitude" class="shadow appearance-none border rounded w-full py-2 px-3" required></div><div><label for="longitude" class="block text-gray-700 text-sm font-bold mb-2">經度</label><input type="text" id="longitude" class="shadow appearance-none border rounded w-full py-2 px-3" required></div></div><div class="mb-6"><label for="tolerance" class="block text-gray-700 text-sm font-bold mb-2">容許誤差 (公尺)</label><input type="number" id="tolerance" class="shadow appearance-none border rounded w-full py-2 px-3" required></div><div class="flex justify-end"><button type="button" id="cancel-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg mr-2">取消</button><button type="submit" id="save-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">儲存</button></div></form>
         </div>
     </div>
-    
-     <!-- QR Code Modal -->
     <div id="qrcode-modal" class="fixed inset-0 modal-backdrop flex items-center justify-center hidden z-40">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center" onclick="event.stopPropagation()">
-            <h3 id="qrcode-modal-title" class="text-2xl font-bold mb-4">巡邏點 QR Code</h3>
-            <div id="qrcode-container" class="flex justify-center items-center my-4"></div>
-            <a id="download-qrcode-btn" href="#" download="qrcode.png" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg mr-2">下載圖片</a>
-            <button type="button" id="close-qrcode-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">關閉</button>
-        </div>
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center" onclick="event.stopPropagation()"><h3 id="qrcode-modal-title" class="text-2xl font-bold mb-4"></h3><div id="qrcode-container" class="flex justify-center my-4"></div><a id="download-qrcode-btn" href="#" download="qrcode.png" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg mr-2">下載</a><button type="button" id="close-qrcode-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">關閉</button></div>
     </div>
-
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, getDoc, addDoc, setDoc, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.appspot.com",
-            messagingSenderId: "698452461679",
-            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
-        };
-
+        import { getFirestore, collection, onSnapshot, doc, getDoc, addDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const firebaseConfig = { apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8", authDomain: "checkin-29f7f.firebaseapp.com", projectId: "checkin-29f7f", storageBucket: "checkin-29f7f.appspot.com", messagingSenderId: "698452461679", appId: "1:698452461679:web:bd99b65066602e0a92e59a" };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-
-        // DOM elements
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const appContainer = document.getElementById('app-container');
-        const patrolsList = document.getElementById('patrols-list');
-        const patrolsLoading = document.getElementById('patrols-loading');
-        
-        // Modal elements
-        const patrolModal = document.getElementById('patrol-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalError = document.getElementById('modal-error');
-        const patrolForm = document.getElementById('patrol-form');
-        const patrolIdInput = document.getElementById('patrol-id');
-        const patrolNameInput = document.getElementById('patrol-name');
-        const latitudeInput = document.getElementById('latitude');
-        const longitudeInput = document.getElementById('longitude');
-        const toleranceInput = document.getElementById('tolerance');
-
-        const addPatrolBtn = document.getElementById('add-patrol-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
-        
-        const qrcodeModal = document.getElementById('qrcode-modal');
-        const qrcodeContainer = document.getElementById('qrcode-container');
-        const qrcodeModalTitle = document.getElementById('qrcode-modal-title');
-        const downloadQrcodeBtn = document.getElementById('download-qrcode-btn');
-        const closeQrcodeBtn = document.getElementById('close-qrcode-btn');
-
-        function openModal(patrol = null) {
-            patrolForm.reset();
-            modalError.classList.add('hidden');
-            if (patrol) {
-                modalTitle.textContent = '編輯巡邏點';
-                patrolIdInput.value = patrol.id;
-                patrolNameInput.value = patrol.name;
-                latitudeInput.value = patrol.location?.lat || '';
-                longitudeInput.value = patrol.location?.lng || '';
-                toleranceInput.value = patrol.tolerance;
-            } else {
-                modalTitle.textContent = '新增巡邏點';
-                patrolIdInput.value = '';
-            }
-            patrolModal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            patrolModal.classList.add('hidden');
-        }
-        
-        function openQrCodeModal(patrol) {
-            qrcodeModalTitle.textContent = `${patrol.name} QR Code`;
-            const checkinUrl = `${window.location.origin}/checkin/index.html?patrolId=${patrol.id}`;
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(checkinUrl)}`;
-            qrcodeContainer.innerHTML = `<img src="${qrApiUrl}" alt="QR Code">`;
-            downloadQrcodeBtn.href = qrApiUrl;
-            qrcodeModal.classList.remove('hidden');
-        }
-
-        function closeQrCodeModal() {
-            qrcodeModal.classList.add('hidden');
-        }
-
-        function renderPatrols(patrols) {
-            patrolsLoading.classList.add('hidden');
-            patrolsList.innerHTML = '';
-            if (patrols.length === 0) {
-                patrolsList.innerHTML = `<p class="text-gray-500 col-span-full text-center">尚未建立任何巡邏點。</p>`;
-                return;
-            }
-            
-            const sortedPatrols = patrols.sort((a, b) => {
-                const dateA = a.createdAt?.toDate() || 0;
-                const dateB = b.createdAt?.toDate() || 0;
-                return dateB - dateA; 
-            });
-
-            sortedPatrols.forEach(patrol => {
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-lg shadow-md p-6';
-                card.innerHTML = `
-                    <h3 class="text-xl font-bold text-gray-800 mb-2 truncate">${patrol.name}</h3>
-                    <div class="text-sm text-gray-500 space-y-1 mb-4">
-                        <p>緯度: ${patrol.location?.lat || '<span class="text-red-500">資料遺失</span>'}</p>
-                        <p>經度: ${patrol.location?.lng || '<span class="text-red-500">資料遺失</span>'}</p>
-                        <p>誤差: ±${patrol.tolerance} 公尺</p>
-                    </div>
-                    <div class="flex justify-end space-x-2">
-                        <button data-action="qrcode" data-id="${patrol.id}" class="text-green-500 hover:text-green-700"><i class="fas fa-qrcode"></i> QR Code</button>
-                        <button data-action="edit" data-id="${patrol.id}" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i> 編輯</button>
-                        <button data-action="delete" data-id="${patrol.id}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i> 刪除</button>
-                    </div>
-                `;
-                patrolsList.appendChild(card);
-            });
-        }
-        
-        function validateForm() {
-            const name = patrolNameInput.value.trim();
-            const lat = latitudeInput.value;
-            const lng = longitudeInput.value;
-            const tolerance = toleranceInput.value;
-
-            if (!name || !lat || !lng || !tolerance) {
-                modalError.textContent = '錯誤：所有欄位都必須填寫。';
-                modalError.classList.remove('hidden');
-                return null;
-            }
-
-            const latNum = parseFloat(lat);
-            const lngNum = parseFloat(lng);
-            const toleranceNum = parseInt(tolerance, 10);
-            
-            if (isNaN(latNum) || isNaN(lngNum) || isNaN(toleranceNum)) {
-                modalError.textContent = '錯誤：緯度、經度與容許誤差必須是有效的數字。';
-                modalError.classList.remove('hidden');
-                return null;
-            }
-
-            if (latNum < -90 || latNum > 90) {
-                 modalError.textContent = '錯誤：緯度必須介于 -90 和 90 之間。';
-                 modalError.classList.remove('hidden');
-                 return null;
-            }
-
-            if (lngNum < -180 || lngNum > 180) {
-                 modalError.textContent = '錯誤：經度必須介于 -180 和 180 之間。';
-                 modalError.classList.remove('hidden');
-                 return null;
-            }
-            
-            modalError.classList.add('hidden');
-            return {
-                name: name,
-                location: { lat: latNum, lng: lngNum },
-                tolerance: toleranceNum
-            };
-        }
-        
-        async function handleSavePatrol(event) {
-            event.preventDefault();
-            
-            const patrolData = validateForm();
-            if (!patrolData) return;
-
-            const id = patrolIdInput.value;
-            const saveBtn = document.getElementById('save-btn');
-            saveBtn.disabled = true;
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 儲存中...';
-
-            try {
-                if (id) {
-                    await setDoc(doc(db, "patrols", id), patrolData, { merge: true });
-                } else {
-                    patrolData.createdAt = serverTimestamp();
-                    await addDoc(collection(db, "patrols"), patrolData);
-                }
-                closeModal();
-            } catch (error) {
-                console.error("儲存巡邏點失敗:", error);
-                modalError.textContent = `儲存失敗，請檢查您的網路連線或稍後再試。(${error.code})`;
-                modalError.classList.remove('hidden');
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = '儲存';
-            }
-        }
-
-        async function handleDeletePatrol(id) {
-            if (confirm('您確定要刪除這個巡邏點嗎？此操作無法復原。')) {
-                try {
-                    await deleteDoc(doc(db, "patrols", id));
-                } catch (error) {
-                    console.error("刪除巡邏點失敗:", error);
-                    alert('刪除失敗，請稍後再試。');
-                }
-            }
-        }
-        
+        const loadingOverlay = document.getElementById('loading-overlay'), appContainer = document.getElementById('app-container'), patrolsList = document.getElementById('patrols-list'), patrolsLoading = document.getElementById('patrols-loading'), patrolModal = document.getElementById('patrol-modal'), modalTitle = document.getElementById('modal-title'), modalError = document.getElementById('modal-error'), patrolForm = document.getElementById('patrol-form'), patrolIdInput = document.getElementById('patrol-id'), patrolNameInput = document.getElementById('patrol-name'), latitudeInput = document.getElementById('latitude'), longitudeInput = document.getElementById('longitude'), toleranceInput = document.getElementById('tolerance'), addPatrolBtn = document.getElementById('add-patrol-btn'), cancelBtn = document.getElementById('cancel-btn'), qrcodeModal = document.getElementById('qrcode-modal'), qrcodeContainer = document.getElementById('qrcode-container'), qrcodeModalTitle = document.getElementById('qrcode-modal-title'), downloadQrcodeBtn = document.getElementById('download-qrcode-btn'), closeQrcodeBtn = document.getElementById('close-qrcode-btn');
         let patrolsCache = [];
-
-        function initializeAdminApp() {
-            const patrolsRef = collection(db, "patrols");
-
-            onSnapshot(patrolsRef, (snapshot) => {
-                patrolsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderPatrols(patrolsCache);
-            }, (error) => {
-                console.error("監聽巡邏點失敗:", error);
-                patrolsLoading.innerHTML = `<p class="text-red-500">無法載入巡邏點資料，請檢查您的網路連線或安全規則。</p>`;
-            });
-
-            addPatrolBtn.addEventListener('click', () => openModal());
-            cancelBtn.addEventListener('click', closeModal);
-            patrolModal.addEventListener('click', closeModal);
-            patrolForm.addEventListener('submit', handleSavePatrol);
-            
-            closeQrcodeBtn.addEventListener('click', closeQrCodeModal);
-            qrcodeModal.addEventListener('click', closeQrCodeModal);
-
-            patrolsList.addEventListener('click', (e) => {
-                const button = e.target.closest('button');
-                if (!button) return;
-
-                const action = button.dataset.action;
-                const id = button.dataset.id;
-                const patrol = patrolsCache.find(p => p.id === id);
-
-                if (action === 'edit' && patrol) {
-                    openModal(patrol);
-                } else if (action === 'delete' && id) {
-                    handleDeletePatrol(id);
-                } else if (action === 'qrcode' && patrol) {
-                    openQrCodeModal(patrol);
-                }
-            });
-        }
-
-        onAuthStateChanged(auth, async (user) => {
-            const mainPageUrl = `${window.location.origin}/checkin/`;
-            if (user) {
-                const userRef = doc(db, "users", user.uid);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists() && ['poweruser', 'admin', 'superadmin'].includes(userSnap.data().role)) {
-                    loadingOverlay.classList.add('hidden');
-                    appContainer.classList.remove('hidden');
-                    initializeAdminApp();
-                } else {
-                    localStorage.setItem('login_redirect_url', window.location.href);
-                    window.location.href = mainPageUrl;
-                }
-            } else {
-                localStorage.setItem('login_redirect_url', window.location.href);
-                window.location.href = mainPageUrl;
-            }
-        });
+        function openModal(patrol = null) { patrolForm.reset(); modalError.classList.add('hidden'); if (patrol) { modalTitle.textContent = '編輯巡邏點'; patrolIdInput.value = patrol.id; patrolNameInput.value = patrol.name; latitudeInput.value = patrol.location?.lat || ''; longitudeInput.value = patrol.location?.lng || ''; toleranceInput.value = patrol.tolerance; } else { modalTitle.textContent = '新增巡邏點'; patrolIdInput.value = ''; } patrolModal.classList.remove('hidden'); }
+        function closeModal() { patrolModal.classList.add('hidden'); }
+        function openQrCodeModal(patrol) { qrcodeModalTitle.textContent = `${patrol.name} QR Code`; const url = `${window.location.origin}/checkin/index.html?patrolId=${patrol.id}`; const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`; qrcodeContainer.innerHTML = `<img src="${apiUrl}" alt="QR Code">`; downloadQrcodeBtn.href = apiUrl; qrcodeModal.classList.remove('hidden'); }
+        function closeQrCodeModal() { qrcodeModal.classList.add('hidden'); }
+        function renderPatrols(patrols) { patrolsLoading.classList.add('hidden'); patrolsList.innerHTML = patrols.length === 0 ? `<p class="text-gray-500 col-span-full text-center">尚未建立任何巡邏點。</p>` : patrols.sort((a,b) => (b.createdAt?.toDate()||0) - (a.createdAt?.toDate()||0)).map(p => `<div class="bg-white rounded-lg shadow-md p-6"><h3 class="text-xl font-bold text-gray-800 mb-2 truncate">${p.name}</h3><div class="text-sm text-gray-500 space-y-1 mb-4"><p>緯度: ${p.location?.lat || '<span class="text-red-500">資料遺失</span>'}</p><p>經度: ${p.location?.lng || '<span class="text-red-500">資料遺失</span>'}</p><p>誤差: ±${p.tolerance} 公尺</p></div><div class="flex justify-end space-x-2"><button data-action="qrcode" data-id="${p.id}" class="text-green-500 hover:text-green-700"><i class="fas fa-qrcode"></i> QR Code</button><button data-action="edit" data-id="${p.id}" class="text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i> 編輯</button><button data-action="delete" data-id="${p.id}" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i> 刪除</button></div></div>`).join(''); }
+        function validateForm() { const name = patrolNameInput.value.trim(), lat = parseFloat(latitudeInput.value), lng = parseFloat(longitudeInput.value), tolerance = parseInt(toleranceInput.value, 10); if (!name || isNaN(lat) || isNaN(lng) || isNaN(tolerance)) { modalError.textContent = '錯誤：所有欄位都必須填寫，且經緯度與誤差必須是數字。'; modalError.classList.remove('hidden'); return null; } if (lat < -90 || lat > 90) { modalError.textContent = '錯誤：緯度必須介于 -90 和 90 之間。'; modalError.classList.remove('hidden'); return null; } if (lng < -180 || lng > 180) { modalError.textContent = '錯誤：經度必須介于 -180 和 180 之間。'; modalError.classList.remove('hidden'); return null; } modalError.classList.add('hidden'); return { name, location: { lat, lng }, tolerance }; }
+        async function handleSavePatrol(e) { e.preventDefault(); const data = validateForm(); if (!data) return; const id = patrolIdInput.value, btn = document.getElementById('save-btn'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 儲存中...'; try { if (id) await setDoc(doc(db, "patrols", id), data, { merge: true }); else { data.createdAt = serverTimestamp(); await addDoc(collection(db, "patrols"), data); } closeModal(); } catch (err) { console.error("儲存失敗:", err); modalError.textContent = `儲存失敗: ${err.message}`; modalError.classList.remove('hidden'); } finally { btn.disabled = false; btn.innerHTML = '儲存'; } }
+        async function handleDeletePatrol(id) { if (confirm('您確定要刪除這個巡邏點嗎？')) try { await deleteDoc(doc(db, "patrols", id)); } catch (err) { console.error("刪除失敗:", err); alert('刪除失敗，請稍後再試。'); } }
+        function initializeAdminApp() { onSnapshot(collection(db, "patrols"), snap => { patrolsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderPatrols(patrolsCache); }, err => { console.error("監聽巡邏點失敗:", err); patrolsLoading.innerHTML = `<p class="text-red-500">無法載入資料。</p>`; }); addPatrolBtn.addEventListener('click', () => openModal()); cancelBtn.addEventListener('click', closeModal); patrolModal.addEventListener('click', closeModal); patrolForm.addEventListener('submit', handleSavePatrol); closeQrcodeBtn.addEventListener('click', closeQrCodeModal); qrcodeModal.addEventListener('click', closeQrCodeModal); patrolsList.addEventListener('click', e => { const btn = e.target.closest('button'); if (!btn) return; const { action, id } = btn.dataset, p = patrolsCache.find(p => p.id === id); if (action === 'edit' && p) openModal(p); else if (action === 'delete' && id) handleDeletePatrol(id); else if (action === 'qrcode' && p) openQrCodeModal(p); }); }
+        const unsubscribe = onAuthStateChanged(auth, async (user) => { unsubscribe(); const url = `${window.location.origin}/checkin/`; if (user) { const userSnap = await getDoc(doc(db, "users", user.uid)); if (userSnap.exists() && ['poweruser', 'admin', 'superadmin'].includes(userSnap.data().role)) { loadingOverlay.classList.add('hidden'); appContainer.classList.remove('hidden'); initializeAdminApp(); } else { localStorage.setItem('login_redirect_url', window.location.href); window.location.href = url; } } else { localStorage.setItem('login_redirect_url', window.location.href); window.location.href = url; } });
     </script>
 </body>
 </html>
