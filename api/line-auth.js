@@ -52,20 +52,17 @@ export default async function handler(request, response) {
         const profileData = await profileResponse.json();
         
         if (!profileResponse.ok) {
-             console.error('LINE Profile API Error:', profileData);
             throw new Error(profileData.message || 'Failed to get user profile.');
         }
         
-        // --- FIX START: 檢查 pictureUrl 是否存在，如果不存在則提供一個預設頭像 ---
+        // 檢查 pictureUrl 是否存在，如果不存在則提供一個預設頭像
         const pictureUrl = profileData.pictureUrl || 'https://placehold.co/200x200/E2E8F0/A0AEC0?text=User';
-        // --- FIX END ---
-
 
         // 成功取得資料，回傳給前端
         response.status(200).json({
             userId: profileData.userId,
             displayName: profileData.displayName,
-            pictureUrl: pictureUrl, // 使用已檢查過的 pictureUrl
+            pictureUrl: pictureUrl,
         });
 
     } catch (error) {
