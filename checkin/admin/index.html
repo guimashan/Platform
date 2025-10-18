@@ -146,6 +146,7 @@
             if (user) {
                 const userRef = doc(db, "users", user.uid);
                 const userSnap = await getDoc(userRef);
+                // Allow 'poweruser' to access this page
                 if (userSnap.exists() && ['poweruser', 'admin', 'superadmin'].includes(userSnap.data().role)) {
                     loadingOverlay.classList.add('hidden');
                     appContainer.classList.remove('hidden');
