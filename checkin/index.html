@@ -78,6 +78,9 @@
         const checkinView = document.getElementById('checkin-view');
         const checkinBtn = document.getElementById('checkin-btn');
 
+        // This is the single source of truth for the redirect URI
+        const REDIRECT_URI = `${window.location.origin}/checkin/`;
+
         function showView(viewToShow) {
             loadingView.classList.add('hidden');
             loginView.classList.add('hidden');
@@ -88,9 +91,8 @@
         function handleLineRedirect() {
             const state = Date.now().toString();
             localStorage.setItem('line_login_state', state);
-            const redirectUri = `${window.location.origin}/checkin/`;
             const scope = 'profile openid';
-            const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`;
+            const authUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${lineClientId}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}&scope=${scope}`;
             window.location.href = authUrl;
         }
 
@@ -99,17 +101,16 @@
             const localState = localStorage.getItem('line_login_state');
             if (state !== localState) {
                 alert('登入驗證失敗，請重試。');
-                window.location.href = '/checkin/';
+                window.location.href = REDIRECT_URI;
                 return;
             }
             localStorage.removeItem('line_login_state');
 
             try {
-                const redirectUri = `${window.location.origin}/checkin/`;
                 const response = await fetch('/api/line-auth', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, redirect_uri: redirectUri }),
+                    body: JSON.stringify({ code, redirect_uri: REDIRECT_URI }),
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.details || '從後端取得 Firebase 令牌失敗');
@@ -120,7 +121,7 @@
             } catch (error) {
                 console.error('Callback 處理失敗:', error);
                 alert(`登入失敗：${error.message}`);
-                window.location.href = '/checkin/';
+                window.location.href = REDIRECT_URI;
             }
         }
         
@@ -142,7 +143,7 @@
             } catch (error) {
                  console.error("顯示簽到頁面失敗:", error);
                  alert("無法載入您的使用者資訊，將為您登出，請稍後再試。");
-                 window.history.replaceState({}, document.title, "/checkin/");
+                 window.history.replaceState({}, document.title, REDIRECT_URI);
                  await signOut(auth);
             }
         }
@@ -166,7 +167,7 @@
 
                 if (patrolSnap && patrolSnap.exists()) {
                     patrolNameEl.textContent = patrolSnap.data().name;
-                    checkinBtn.disabled = false; // Enable button on success
+                    checkinBtn.disabled = false;
                 } else {
                     patrolNameEl.textContent = patrolId ? '找不到該巡邏點' : '請先建立「龜馬山辦公室」預設巡邏點';
                     patrolNameEl.classList.add('text-red-500');
@@ -179,7 +180,7 @@
         }
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            unsubscribe(); // Run only once to get initial state
+            unsubscribe(); 
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
@@ -191,8 +192,7 @@
                     window.location.href = redirectUrl;
                 } else {
                     if (code || state) {
-                        // Clean up URL params from LINE redirect
-                        window.history.replaceState({}, document.title, "/checkin/");
+                        window.history.replaceState({}, document.title, REDIRECT_URI);
                     }
                     displayCheckinView(user);
                 }
