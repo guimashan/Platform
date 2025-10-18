@@ -167,7 +167,7 @@
 
                 if (patrolSnap && patrolSnap.exists()) {
                     patrolNameEl.textContent = patrolSnap.data().name;
-                    checkinBtn.disabled = false;
+                    checkinBtn.disabled = false; // Enable button on success
                 } else {
                     patrolNameEl.textContent = patrolId ? '找不到該巡邏點' : '請先建立「龜馬山辦公室」預設巡邏點';
                     patrolNameEl.classList.add('text-red-500');
@@ -180,7 +180,7 @@
         }
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            unsubscribe(); 
+            unsubscribe(); // Run only once to get initial state
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
@@ -192,6 +192,7 @@
                     window.location.href = redirectUrl;
                 } else {
                     if (code || state) {
+                        // Clean up URL params from LINE redirect
                         window.history.replaceState({}, document.title, REDIRECT_URI);
                     }
                     displayCheckinView(user);
