@@ -146,7 +146,7 @@
         function updateStats(logs) {
             const now = new Date();
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+            const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
             weekStart.setHours(0,0,0,0);
 
             const todayCount = logs.filter(log => log.timestamp?.toDate() >= todayStart).length;
@@ -204,6 +204,8 @@
         function initializeAdminApp() {
             // Load patrols for filter dropdown
             onSnapshot(collection(db, "patrols"), (snapshot) => {
+                // Clear existing options except the first one
+                patrolFilter.innerHTML = '<option value="">所有巡邏點</option>';
                 snapshot.docs.forEach(doc => {
                     const option = document.createElement('option');
                     option.value = doc.id;
