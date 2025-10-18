@@ -9,153 +9,77 @@
     <style>
         body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
         .spinner { border-top-color: #3498db; }
-        #log-container {
-            font-family: 'Courier New', Courier, monospace;
-            background-color: #2d3748;
-            color: #a0aec0;
-            max-height: 200px;
-            overflow-y: auto;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            font-size: 0.8rem;
-            line-height: 1.2rem;
-            white-space: pre-wrap;
-        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
     <div id="main-container" class="w-full max-w-md">
-        <!-- 主卡片 -->
-        <div id="app-card" class="bg-white rounded-xl shadow-lg p-6 md:p-8 text-center transition-all duration-300">
+        <div id="app-card" class="bg-white rounded-xl shadow-lg p-6 md:p-8 text-center">
             <!-- 登入畫面 -->
             <div id="login-view">
                 <h1 class="text-2xl font-bold text-gray-800 mb-2">奉香簽到系統</h1>
                 <p class="text-gray-500 mb-8">龜馬山紫皇天乙真慶宮</p>
-                <button id="login-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-transform transform hover:scale-105">
+                <button id="login-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
                     <i class="fab fa-line text-2xl mr-3"></i> 使用 LINE 帳號登入
                 </button>
-                <p class="text-xs text-gray-400 mt-6">💡 建議使用 Chrome 或 Safari 瀏覽器</p>
             </div>
 
-            <!-- 簽到畫面 -->
+            <!-- 簽到畫面 (登入後顯示) -->
             <div id="checkin-view" class="hidden">
                  <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-800">奉香簽到</h1>
-                    <div id="test-mode-indicator" class="hidden bg-yellow-400 text-yellow-800 text-xs font-bold px-3 py-1 rounded-full">⚙️ 測試模式</div>
+                    <button id="logout-btn" class="text-sm text-gray-500 hover:text-gray-700">登出</button>
                 </div>
-
                 <div class="bg-gray-50 rounded-lg p-4 mb-6 text-left">
                     <div class="flex items-center">
-                        <img id="user-avatar" src="https://placehold.co/50x50" alt="User Avatar" class="w-12 h-12 rounded-full mr-4">
+                        <img id="user-avatar" src="https://placehold.co/50x50" class="w-12 h-12 rounded-full mr-4">
                         <div>
-                            <p id="user-name" class="font-bold text-gray-800">載入中...</p>
-                            <p id="user-role" class="text-sm text-gray-500">載入中...</p>
+                            <p id="user-name" class="font-bold text-gray-800"></p>
+                            <p id="user-role" class="text-sm text-gray-500"></p>
                         </div>
                     </div>
                 </div>
-
                 <div id="patrol-info" class="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4 mb-6 text-left">
                     <p class="text-sm text-blue-800">目前巡邏點</p>
                     <p id="patrol-name" class="text-xl font-bold text-blue-900">載入中...</p>
                 </div>
-                
-                 <div id="loading-patrol" class="hidden bg-gray-50 rounded-lg p-4 mb-6 text-center">
-                    <i class="fas fa-spinner fa-spin text-gray-500 text-2xl"></i>
-                    <p class="text-gray-600 mt-2">正在載入巡邏點...</p>
-                </div>
-
-                <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
+                <button id="checkin-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-400">
                     <i class="fas fa-map-marker-alt mr-2"></i> 取得定位並簽到
                 </button>
             </div>
-
-            <!-- 結果畫面 -->
-            <div id="result-view" class="hidden"></div>
-        </div>
-        
-        <!-- Log Viewer -->
-        <div id="log-viewer" class="mt-4 hidden">
-             <button id="toggle-log-btn" class="text-sm text-gray-500 hover:text-gray-700 mb-2">顯示執行日誌</button>
-             <div id="log-container" class="hidden"></div>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp as initializeFirebaseApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, query, where, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // --- 變數定義 ---
-        const TEST_MODE = false;
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, collection, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            // --- FIX START: 修正 authDomain ---
             authDomain: "checkin-29f7f.firebaseapp.com",
-            // --- FIX END ---
             projectId: "checkin-29f7f",
             storageBucket: "checkin-29f7f.appspot.com",
             messagingSenderId: "698452461679",
             appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
-        
+
         const lineClientId = '2008269293';
 
-        const app = initializeFirebaseApp(firebaseConfig);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let mainContainer, loginView, checkinView, resultView, loginBtn, checkinBtn,
-            userAvatar, userName, userRole, patrolName, patrolInfo, loadingPatrol,
-            testModeIndicator, logViewer, toggleLogBtn, logContainer;
+        const loginView = document.getElementById('login-view');
+        const checkinView = document.getElementById('checkin-view');
+        const mainContainer = document.getElementById('main-container');
 
-        let currentUser = null;
-        let currentPatrol = null;
+        let currentUserData = null;
 
-        function assignDomElements() {
-            mainContainer = document.getElementById('main-container');
-            loginView = document.getElementById('login-view');
-            checkinView = document.getElementById('checkin-view');
-            resultView = document.getElementById('result-view');
-            loginBtn = document.getElementById('login-btn');
-            checkinBtn = document.getElementById('checkin-btn');
-            userAvatar = document.getElementById('user-avatar');
-            userName = document.getElementById('user-name');
-            userRole = document.getElementById('user-role');
-            patrolName = document.getElementById('patrol-name');
-            patrolInfo = document.getElementById('patrol-info');
-            loadingPatrol = document.getElementById('loading-patrol');
-            testModeIndicator = document.getElementById('test-mode-indicator');
-            logViewer = document.getElementById('log-viewer');
-            toggleLogBtn = document.getElementById('toggle-log-btn');
-            logContainer = document.getElementById('log-container');
-        }
-        
-        function log(message) {
-            console.log(message);
-            if (logContainer) {
-                const time = new Date().toLocaleTimeString();
-                logContainer.innerHTML += `[${time}] ${message}\n`;
-                logContainer.scrollTop = logContainer.scrollHeight;
-            }
+        function showLoading(message) {
+            mainContainer.innerHTML = `<div class="bg-white rounded-xl shadow-lg p-8 text-center"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto spinner"></div><p class="mt-4 text-gray-600">${message}</p></div>`;
         }
 
-        function showView(view) {
-            loginView.classList.add('hidden');
-            checkinView.classList.add('hidden');
-            resultView.classList.add('hidden');
-            view.classList.remove('hidden');
-        }
-
-        function showLoadingSpinner(message) {
-            mainContainer.innerHTML = `
-                <div class="bg-white rounded-xl shadow-lg p-8 text-center">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto spinner"></div>
-                    <p class="mt-4 text-gray-600">${message}</p>
-                </div>
-            `;
-        }
-
-        async function handleLineLogin() {
-            log('開始 LINE 登入流程...');
+        function handleLineRedirect() {
             const state = Date.now().toString();
             localStorage.setItem('line_login_state', state);
             const redirectUri = window.location.origin + window.location.pathname;
@@ -164,9 +88,16 @@
             window.location.href = authUrl;
         }
 
-        async function processLineCallback(code) {
-            showLoadingSpinner('正在驗證 LINE 身分...');
-            log('從 LINE 回調，取得 code...');
+        async function processLineCallback(code, state) {
+            const localState = localStorage.getItem('line_login_state');
+            if (state !== localState) {
+                alert('登入驗證失敗，請重試。');
+                window.location.href = window.location.pathname;
+                return;
+            }
+            localStorage.removeItem('line_login_state');
+            showLoading('正在驗證 LINE 身分...');
+
             try {
                 const redirectUri = window.location.origin + window.location.pathname;
                 const response = await fetch('/api/line-auth', {
@@ -174,307 +105,97 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ code, redirect_uri: redirectUri }),
                 });
-
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.details || '從後端取得 Firebase 令牌失敗');
                 
-                if (!response.ok) {
-                    const errorMessage = `LINE 登入失敗: ${data.details || data.error || '未知的後端錯誤'}`;
-                    throw new Error(errorMessage);
-                }
-                
-                log('後端 API 驗證成功，取得使用者資料。');
-                const { userId, displayName, pictureUrl } = data;
-                
-                await checkOrCreateUser(userId, displayName, pictureUrl);
-                
-                window.location.replace(window.location.pathname + window.location.search.split('&code=')[0].split('?code=')[0]);
+                showLoading('正在登入系統...');
+                await signInWithCustomToken(auth, data.token);
+                // onAuthStateChanged 會處理後續流程
+                // 登入成功後，清除 URL 中的 code 和 state 參數
+                window.location.href = window.location.pathname + window.location.search.split('&code=')[0].split('?code=')[0];
 
             } catch (error) {
-                console.error('登入處理失敗:', error);
-                alert(`登入時發生錯誤：\n${error.message}`);
-                window.location.href = window.location.origin + window.location.pathname;
+                console.error('Callback 處理失敗:', error);
+                alert(`登入失敗：${error.message}`);
+                window.location.href = window.location.pathname;
             }
         }
         
-        async function checkOrCreateUser(userId, displayName, pictureUrl) {
-            log(`檢查 Firebase 使用者: ${userId}`);
-            const userRef = doc(db, 'users', userId);
+        async function displayCheckinView(user) {
+            const userRef = doc(db, "users", user.uid);
             const userSnap = await getDoc(userRef);
-            const now = new Date().toISOString();
-
-            if (userSnap.exists()) {
-                log('使用者已存在，更新最後登入時間。');
-                await setDoc(userRef, { lastLoginAt: now, displayName, pictureUrl }, { merge: true });
-            } else {
-                log('新使用者，建立資料。');
-                await setDoc(userRef, {
-                    displayName,
-                    pictureUrl,
-                    role: 'user', 
-                    createdAt: now,
-                    lastLoginAt: now
-                });
-            }
-            log('使用者資料處理完成。');
-            localStorage.setItem('guimashan_user', JSON.stringify({ userId, displayName, pictureUrl }));
-        }
-
-        function haversineDistance(coords1, coords2) {
-            function toRad(x) { return x * Math.PI / 180; }
-            const R = 6371e3; 
-            const φ1 = toRad(coords1.latitude);
-            const φ2 = toRad(coords2.latitude);
-            const Δφ = toRad(coords2.latitude - coords1.latitude);
-            const Δλ = toRad(coords2.longitude - coords1.longitude);
-
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        function getUserPosition() {
-            return new Promise((resolve, reject) => {
-                if (!navigator.geolocation) {
-                    reject(new Error('您的瀏覽器不支援 GPS 定位。'));
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    position => resolve(position.coords),
-                    error => {
-                        switch (error.code) {
-                            case error.PERMISSION_DENIED:
-                                reject(new Error("您拒絕了 GPS 定位請求。請至手機「設定」>「瀏覽器」>「位置」開啟權限。"));
-                                break;
-                            case error.POSITION_UNAVAILABLE:
-                                reject(new Error("無法取得目前位置資訊。"));
-                                break;
-                            case error.TIMEOUT:
-                                reject(new Error("取得位置資訊逾時。"));
-                                break;
-                            default:
-                                reject(new Error("取得位置時發生未知錯誤。"));
-                                break;
-                        }
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                );
-            });
-        }
-        
-        function showResult(success, data) {
-            let content = '';
-            if(success) {
-                content = `
-                    <div class="text-green-500 mb-4"><i class="fas fa-check-circle fa-3x"></i></div>
-                    <h2 class="text-2xl font-bold mb-2">奉香成功！</h2>
-                    <div class="text-left bg-gray-50 p-4 rounded-lg space-y-2 text-gray-700">
-                        <p><strong>地點：</strong> ${data.patrolName}</p>
-                        <p><strong>時間：</strong> ${data.timestamp}</p>
-                        <p><strong>座標：</strong> ${data.coords.latitude.toFixed(6)}, ${data.coords.longitude.toFixed(6)}</p>
-                        <p><strong>距離：</strong> ${data.distance.toFixed(1)} 公尺</p>
-                    </div>
-                    <p class="text-sm text-gray-500 mt-4">記錄已上傳至系統</p>
-                `;
-            } else {
-                 content = `
-                    <div class="text-red-500 mb-4"><i class="fas fa-times-circle fa-3x"></i></div>
-                    <h2 class="text-2xl font-bold mb-2">${data.title || '位置不符'}</h2>
-                     <div class="text-left bg-gray-50 p-4 rounded-lg space-y-2 text-gray-700">
-                        <p class="text-red-600">${data.message}</p>
-                        ${data.distance ? `<p><strong>實際距離：</strong> ${data.distance.toFixed(1)} 公尺</p>` : ''}
-                        ${data.tolerance ? `<p><strong>容許誤差：</strong> ±${data.tolerance} 公尺</p>` : ''}
-                    </div>
-                    <button id="retry-btn" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">重新定位並簽到</button>
-                `;
-            }
-            resultView.innerHTML = content;
-            showView(resultView);
-            
-            if(!success) {
-                document.getElementById('retry-btn').addEventListener('click', () => {
-                   showView(checkinView);
-                   checkinBtn.click();
-                });
-            }
-        }
-
-        async function performCheckin() {
-            if (!currentUser || !currentPatrol) {
-                alert('使用者或巡邏點資料不完整，無法簽到。');
+            if (!userSnap.exists()) {
+                console.error("在 Firestore 中找不到使用者資料，可能是資料同步延遲。");
+                alert("無法取得您的使用者資訊，請稍後再試或重新登入。");
+                await signOut(auth);
                 return;
             }
+            currentUserData = userSnap.data();
 
-            checkinBtn.disabled = true;
-            checkinBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> 定位中...';
-            log('開始簽到流程...');
+            document.getElementById('user-avatar').src = currentUserData.pictureUrl;
+            document.getElementById('user-name').textContent = `您好，${currentUserData.displayName}！`;
+            const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
+            document.getElementById('user-role').textContent = `角色：${roles[currentUserData.role] || '未知'}`;
 
+            checkinView.classList.remove('hidden');
+            loginView.classList.add('hidden');
+
+            loadPatrolPoint();
+        }
+
+        async function loadPatrolPoint() {
+            const patrolNameEl = document.getElementById('patrol-name');
+            const urlParams = new URLSearchParams(window.location.search);
+            const patrolId = urlParams.get('patrolId');
+            
             try {
-                const isAdminBypass = ['poweruser', 'admin', 'superadmin'].includes(currentUser.role);
-                
-                let userCoords;
-                let distance = 0;
-                let isTestRecord = false;
-
-                if (TEST_MODE || isAdminBypass) {
-                    userCoords = {
-                        latitude: currentPatrol.location.lat,
-                        longitude: currentPatrol.location.lng,
-                    };
-                    log(`免驗證模式，使用巡邏點座標: ${userCoords.latitude}, ${userCoords.longitude}`);
-                    isTestRecord = TEST_MODE;
+                let patrolSnap;
+                if (patrolId) {
+                    patrolSnap = await getDoc(doc(db, "patrols", patrolId));
                 } else {
-                    log('請求真實 GPS 位置...');
-                    userCoords = await getUserPosition();
-                    log(`取得真實 GPS: ${userCoords.latitude}, ${userCoords.longitude}`);
-                    distance = haversineDistance(userCoords, { latitude: currentPatrol.location.lat, longitude: currentPatrol.location.lng });
-                    log(`計算距離: ${distance.toFixed(1)} 公尺`);
-
-                    if (distance > currentPatrol.tolerance) {
-                        log('距離超出容許範圍，簽到失敗。');
-                        showResult(false, {
-                            title: '位置不符',
-                            message: '您的位置不在巡邏點範圍內。',
-                            distance: distance,
-                            tolerance: currentPatrol.tolerance,
-                        });
-                        return;
+                    const q = query(collection(db, "patrols"), where("name", "==", "龜馬山辦公室"));
+                    const querySnapshot = await getDocs(q);
+                    if (!querySnapshot.empty) {
+                        patrolSnap = querySnapshot.docs[0];
                     }
                 }
-                
-                log('驗證成功，準備寫入 Firebase...');
-                const logData = {
-                    userId: currentUser.userId,
-                    userName: currentUser.displayName,
-                    patrolId: currentPatrol.id,
-                    patrolName: currentPatrol.name,
-                    timestamp: serverTimestamp(),
-                    location: {
-                        lat: userCoords.latitude,
-                        lng: userCoords.longitude
-                    },
-                    distance: distance,
-                    isTestRecord: isTestRecord,
-                    isAdminBypass: isAdminBypass && !TEST_MODE
-                };
-                
-                await addDoc(collection(db, "checkin_logs"), logData);
-                log('簽到記錄寫入成功！');
-                
-                showResult(true, {
-                    patrolName: currentPatrol.name,
-                    timestamp: new Date().toLocaleString('zh-TW'),
-                    coords: userCoords,
-                    distance: distance
-                });
 
+                if (patrolSnap && patrolSnap.exists()) {
+                    patrolNameEl.textContent = patrolSnap.data().name;
+                } else {
+                    patrolNameEl.textContent = patrolId ? '找不到該巡邏點' : '請先建立「龜馬山辦公室」預設巡邏點';
+                    patrolNameEl.classList.add('text-red-500');
+                }
             } catch (error) {
-                log(`簽到失敗: ${error.message}`);
-                showResult(false, {
-                    title: '簽到失敗',
-                    message: error.message
-                });
-            } finally {
-                checkinBtn.disabled = false;
-                checkinBtn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i> 取得定位並簽到';
+                console.error("載入巡邏點失敗:", error);
+                patrolNameEl.textContent = '載入巡邏點時發生錯誤';
+                patrolNameEl.classList.add('text-red-500');
             }
         }
 
-        async function startApp() {
-            assignDomElements();
-            log('應用程式初始化...');
+        // --- Auth 狀態監聽 ---
+        onAuthStateChanged(auth, (user) => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
 
-            if (code && state) {
-                const localState = localStorage.getItem('line_login_state');
-                if (state === localState) {
-                    localStorage.removeItem('line_login_state');
-                    await processLineCallback(code);
-                } else {
-                    alert('無效的 state 參數，登入失敗。');
-                    showView(loginView);
-                }
-                return;
-            }
-
-            const storedUser = localStorage.getItem('guimashan_user');
-            if (storedUser) {
-                const userData = JSON.parse(storedUser);
-                log(`找到本地端使用者資料: ${userData.displayName}`);
-                const userRef = doc(db, "users", userData.userId);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    currentUser = { id: userSnap.id, ...userSnap.data(), userId: userSnap.id };
-                    
-                    userAvatar.src = currentUser.pictureUrl;
-                    userName.textContent = `您好，${currentUser.displayName}！`;
-                    const roles = { user: '工作人員/工作同仁', poweruser: '管理者', admin: '系統管理員', superadmin: '最高系統管理員' };
-                    userRole.textContent = `角色：${roles[currentUser.role] || '未知'}`;
-
-                    showView(checkinView);
-                    logViewer.classList.remove('hidden');
-                    
-                    const patrolId = urlParams.get('patrolId');
-                    await loadPatrolPoint(patrolId);
-
-                } else {
-                    log('本地端使用者在 Firebase 中找不到，清除資料並要求重新登入。');
-                    localStorage.removeItem('guimashan_user');
-                    showView(loginView);
-                }
+            if (user) {
+                // 使用者已登入 Firebase
+                displayCheckinView(user);
             } else {
-                showView(loginView);
-            }
-            
-            loginBtn.addEventListener('click', handleLineLogin);
-            checkinBtn.addEventListener('click', performCheckin);
-            toggleLogBtn.addEventListener('click', () => {
-                logContainer.classList.toggle('hidden');
-                toggleLogBtn.textContent = logContainer.classList.contains('hidden') ? '顯示執行日誌' : '隱藏執行日誌';
-            });
-        }
-        
-        async function loadPatrolPoint(patrolId) {
-            checkinBtn.disabled = true;
-            patrolInfo.classList.add('hidden');
-            loadingPatrol.classList.remove('hidden');
-
-            try {
-                if (patrolId) {
-                    log(`從 URL 讀取 patrolId: ${patrolId}`);
-                    const patrolRef = doc(db, "patrols", patrolId);
-                    const patrolSnap = await getDoc(patrolRef);
-                    if (patrolSnap.exists()) {
-                        currentPatrol = { id: patrolSnap.id, ...patrolSnap.data() };
-                    } else {
-                         throw new Error('找不到指定的巡邏點。');
-                    }
-                } else {
-                    log('URL 無 patrolId，載入預設巡邏點: 龜馬山辦公室');
-                    const q = query(collection(db, "patrols"), where("name", "==", "龜馬山辦公室"));
-                    const querySnapshot = await getDocs(q);
-                    if (!querySnapshot.empty) {
-                        const patrolDoc = querySnapshot.docs[0];
-                        currentPatrol = { id: patrolDoc.id, ...patrolDoc.data() };
-                    } else {
-                         throw new Error('找不到預設巡邏點「龜馬山辦公室」，請先至後台建立。');
-                    }
+                // 使用者未登入 Firebase
+                checkinView.classList.add('hidden');
+                loginView.classList.remove('hidden');
+                
+                // 如果 URL 中有 code，代表是從 LINE 回來的，需要處理
+                if (code && state) {
+                    processLineCallback(code, state);
                 }
-                log(`巡邏點 "${currentPatrol.name}" 載入成功。`);
-                patrolName.textContent = currentPatrol.name;
-                checkinBtn.disabled = false;
-            } catch (error) {
-                log(`載入巡邏點失敗: ${error.message}`);
-                patrolName.textContent = error.message;
-                patrolName.classList.add('text-red-600');
-            } finally {
-                loadingPatrol.classList.add('hidden');
-                patrolInfo.classList.remove('hidden');
             }
-        }
-        
-        document.addEventListener('DOMContentLoaded', startApp);
+        });
+
+        document.getElementById('login-btn').addEventListener('click', handleLineRedirect);
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
     </script>
 </body>
