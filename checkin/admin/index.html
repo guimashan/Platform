@@ -6,9 +6,7 @@
     <title>管理後台 - 簽到記錄</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <style>
-        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
-    </style>
+    <style> body { font-family: 'Inter', 'Noto Sans TC', sans-serif; } </style>
 </head>
 <body class="bg-gray-100">
     <div id="loading-overlay" class="fixed inset-0 bg-white flex items-center justify-center z-50">
@@ -26,18 +24,10 @@
                     <h1 class="text-2xl font-bold text-gray-800">管理系統</h1>
                 </div>
                 <nav class="mt-6">
-                    <a href="/checkin/admin/index.html" class="flex items-center px-6 py-3 text-white bg-blue-600">
-                        <i class="fas fa-clipboard-list w-6 text-center"></i><span class="mx-4">簽到記錄</span>
-                    </a>
-                    <a href="/checkin/admin/patrols.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                        <i class="fas fa-map-marked-alt w-6 text-center"></i><span class="mx-4">巡邏點管理</span>
-                    </a>
-                    <a href="/checkin/admin/users.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                        <i class="fas fa-users-cog w-6 text-center"></i><span class="mx-4">使用者管理</span>
-                    </a>
-                    <a href="/checkin/" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200">
-                         <i class="fas fa-home w-6 text-center"></i><span class="mx-4">返回簽到頁</span>
-                    </a>
+                    <a href="/checkin/admin/index.html" class="flex items-center px-6 py-3 text-white bg-blue-600"><i class="fas fa-clipboard-list w-6 text-center"></i><span class="mx-4">簽到記錄</span></a>
+                    <a href="/checkin/admin/patrols.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-map-marked-alt w-6 text-center"></i><span class="mx-4">巡邏點管理</span></a>
+                    <a href="/checkin/admin/users.html" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-users-cog w-6 text-center"></i><span class="mx-4">使用者管理</span></a>
+                    <a href="/checkin/" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-200"><i class="fas fa-home w-6 text-center"></i><span class="mx-4">返回簽到頁</span></a>
                 </nav>
             </div>
 
@@ -45,46 +35,25 @@
             <div class="flex-1 flex flex-col overflow-hidden">
                 <header class="flex justify-between items-center p-6 bg-white border-b">
                     <h2 class="text-2xl font-semibold text-gray-700">簽到記錄管理</h2>
-                     <button id="export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                        <i class="fas fa-file-csv mr-2"></i>匯出 CSV
-                    </button>
+                    <button id="export-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center"><i class="fas fa-file-csv mr-2"></i>匯出 CSV</button>
                 </header>
 
                 <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
-                    <div id="stats-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
-                        <!-- Stats cards will be inserted here -->
-                    </div>
-
+                    <div id="stats-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6"></div>
                     <div class="bg-white rounded-lg shadow p-4 mb-6">
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <input type="date" id="start-date-filter" class="w-full px-4 py-2 border rounded-lg" placeholder="開始日期">
                             <input type="date" id="end-date-filter" class="w-full px-4 py-2 border rounded-lg" placeholder="結束日期">
-                            <select id="patrol-filter" class="w-full px-4 py-2 border rounded-lg bg-white">
-                                <option value="">所有巡邏點</option>
-                            </select>
+                            <select id="patrol-filter" class="w-full px-4 py-2 border rounded-lg bg-white"><option value="">所有巡邏點</option></select>
                             <input type="text" id="user-filter" class="w-full px-4 py-2 border rounded-lg" placeholder="搜尋使用者名稱...">
                         </div>
                     </div>
-
                     <div class="bg-white shadow-md rounded-lg overflow-hidden">
                         <table class="min-w-full leading-normal">
-                            <thead>
-                                <tr>
-                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">時間</th>
-                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">使用者</th>
-                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">巡邏點</th>
-                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">距離(m)</th>
-                                    <th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">模式</th>
-                                </tr>
-                            </thead>
-                            <tbody id="logs-table-body">
-                                <!-- Log rows will be inserted here -->
-                            </tbody>
+                            <thead><tr><th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">時間</th><th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">使用者</th><th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">巡邏點</th><th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">距離(m)</th><th class="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">模式</th></tr></thead>
+                            <tbody id="logs-table-body"></tbody>
                         </table>
-                        <div id="logs-loading" class="text-center py-10">
-                            <i class="fas fa-spinner fa-spin text-gray-500 text-3xl"></i>
-                            <p class="mt-2 text-gray-600">正在載入簽到記錄...</p>
-                        </div>
+                        <div id="logs-loading" class="text-center py-10"><i class="fas fa-spinner fa-spin text-gray-500 text-3xl"></i><p class="mt-2 text-gray-600">正在載入簽到記錄...</p></div>
                     </div>
                 </main>
             </div>
@@ -94,15 +63,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, getDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8",
-            authDomain: "checkin-29f7f.firebaseapp.com",
-            projectId: "checkin-29f7f",
-            storageBucket: "checkin-29f7f.appspot.com",
-            messagingSenderId: "698452461679",
-            appId: "1:698452461679:web:bd99b65066602e0a92e59a"
+            apiKey: "AIzaSyBYrg7L1tHWkvC4FyrnA7eZRCpi6B6DDs8", authDomain: "checkin-29f7f.firebaseapp.com", projectId: "checkin-29f7f", storageBucket: "checkin-29f7f.appspot.com", messagingSenderId: "698452461679", appId: "1:698452461679:web:bd99b65066602e0a92e59a"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -116,130 +80,72 @@
         const statsCards = document.getElementById('stats-cards');
         const patrolFilter = document.getElementById('patrol-filter');
         
-        let allLogs = [];
-        let filteredLogs = [];
+        let allLogs = [], filteredLogs = [];
 
         function renderLogs(logs) {
             logsLoading.classList.add('hidden');
-            logsTableBody.innerHTML = '';
-             if (logs.length === 0) {
-                logsTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">沒有符合條件的記錄。</td></tr>`;
-                return;
-            }
-
-            logs.forEach(log => {
-                const tr = document.createElement('tr');
+            logsTableBody.innerHTML = logs.length === 0 ? `<tr><td colspan="5" class="text-center py-10 text-gray-500">沒有符合條件的記錄。</td></tr>` : logs.map(log => {
                 const timestamp = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleString('zh-TW', { dateStyle: 'short', timeStyle: 'medium'}) : 'N/A';
                 const mode = log.isAdminBypass ? '<span class="text-purple-600">管理員</span>' : (log.isTestRecord ? '<span class="text-yellow-600">測試</span>' : '<span class="text-green-600">正常</span>');
-
-                tr.innerHTML = `
-                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${timestamp}</p></td>
-                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.userName || 'N/A'}</p></td>
-                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.patrolName || 'N/A'}</p></td>
-                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.distance?.toFixed(1) || '0.0'}</p></td>
-                    <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${mode}</td>
-                `;
-                logsTableBody.appendChild(tr);
-            });
+                return `<tr><td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${timestamp}</p></td><td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.userName || 'N/A'}</p></td><td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.patrolName || 'N/A'}</p></td><td class="px-5 py-5 border-b border-gray-200 bg-white text-sm"><p class="text-gray-900 whitespace-no-wrap">${log.distance?.toFixed(1) || '0.0'}</p></td><td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${mode}</td></tr>`;
+            }).join('');
         }
         
         function updateStats(logs) {
-            const now = new Date();
-            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-            weekStart.setHours(0,0,0,0);
-
+            const now = new Date(), todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
             const todayCount = logs.filter(log => log.timestamp?.toDate() >= todayStart).length;
             const weekCount = logs.filter(log => log.timestamp?.toDate() >= weekStart).length;
-            const totalCount = logs.length;
-
-            statsCards.innerHTML = `
-                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">今日簽到次數</h4><p class="text-3xl font-bold">${todayCount}</p></div>
-                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">本週簽到次數</h4><p class="text-3xl font-bold">${weekCount}</p></div>
-                <div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">總簽到次數</h4><p class="text-3xl font-bold">${totalCount}</p></div>
-            `;
+            statsCards.innerHTML = `<div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">今日簽到次數</h4><p class="text-3xl font-bold">${todayCount}</p></div><div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">本週簽到次數</h4><p class="text-3xl font-bold">${weekCount}</p></div><div class="bg-white rounded-lg p-4 shadow"><h4 class="text-gray-500">總簽到次數</h4><p class="text-3xl font-bold">${logs.length}</p></div>`;
         }
 
         function applyFilters() {
-            const startDate = document.getElementById('start-date-filter').valueAsDate;
-            const endDate = document.getElementById('end-date-filter').valueAsDate;
-            const patrolId = document.getElementById('patrol-filter').value;
-            const userName = document.getElementById('user-filter').value.toLowerCase();
-
+            const startDate = document.getElementById('start-date-filter').valueAsDate, endDate = document.getElementById('end-date-filter').valueAsDate;
+            const patrolId = document.getElementById('patrol-filter').value, userName = document.getElementById('user-filter').value.toLowerCase();
             if(endDate) endDate.setHours(23, 59, 59, 999);
-
             filteredLogs = allLogs.filter(log => {
                 const logDate = log.timestamp?.toDate();
                 if (!logDate) return false;
-
-                const dateMatch = (!startDate || logDate >= startDate) && (!endDate || logDate <= endDate);
-                const patrolMatch = !patrolId || log.patrolId === patrolId;
-                const userMatch = !userName || log.userName.toLowerCase().includes(userName);
-                
-                return dateMatch && patrolMatch && userMatch;
+                return (!startDate || logDate >= startDate) && (!endDate || logDate <= endDate) && (!patrolId || log.patrolId === patrolId) && (!userName || log.userName.toLowerCase().includes(userName));
             });
             renderLogs(filteredLogs);
         }
         
         function exportToCSV() {
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF for BOM
-            csvContent += "時間,使用者,巡邏點,距離(公尺),模式\r\n";
-            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + "時間,使用者,巡邏點,距離(公尺),模式\r\n";
             filteredLogs.forEach(log => {
                 const timestamp = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleString('zh-TW') : 'N/A';
                 const mode = log.isAdminBypass ? '管理員' : (log.isTestRecord ? '測試' : '正常');
-                const row = `"${timestamp}","${log.userName}","${log.patrolName}","${log.distance?.toFixed(1) || 0}","${mode}"`;
-                csvContent += row + "\r\n";
+                csvContent += `"${timestamp}","${log.userName}","${log.patrolName}","${log.distance?.toFixed(1) || 0}","${mode}"\r\n`;
             });
-
-            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", encodeURI(csvContent));
             link.setAttribute("download", `簽到記錄_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
         function initializeAdminApp() {
-            // Load patrols for filter dropdown
             onSnapshot(collection(db, "patrols"), (snapshot) => {
-                // Clear existing options except the first one
-                patrolFilter.innerHTML = '<option value="">所有巡邏點</option>';
-                snapshot.docs.forEach(doc => {
-                    const option = document.createElement('option');
-                    option.value = doc.id;
-                    option.textContent = doc.data().name;
-                    patrolFilter.appendChild(option);
-                });
+                patrolFilter.innerHTML = '<option value="">所有巡邏點</option>' + snapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
             });
-
-            // Listen for log changes
-            const logsQuery = query(collection(db, "checkin_logs"), orderBy("timestamp", "desc"));
-            onSnapshot(logsQuery, (snapshot) => {
+            onSnapshot(query(collection(db, "checkin_logs"), orderBy("timestamp", "desc")), (snapshot) => {
                 allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                applyFilters(); // Apply filters on new data
-                updateStats(allLogs); // Update stats with all data
+                applyFilters(); updateStats(allLogs);
             }, (error) => {
                 console.error("監聽簽到記錄失敗:", error);
                 logsLoading.innerHTML = `<p class="text-red-500">無法載入簽到記錄。</p>`;
             });
-
-            // Add filter event listeners
-            ['start-date-filter', 'end-date-filter', 'patrol-filter', 'user-filter'].forEach(id => {
-                document.getElementById(id).addEventListener('change', applyFilters);
-                if(id === 'user-filter') document.getElementById(id).addEventListener('keyup', applyFilters);
-            });
-            
+            ['start-date-filter', 'end-date-filter', 'patrol-filter'].forEach(id => document.getElementById(id).addEventListener('change', applyFilters));
+            document.getElementById('user-filter').addEventListener('keyup', applyFilters);
             document.getElementById('export-btn').addEventListener('click', exportToCSV);
         }
 
-        onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe(); // Run only once
             const mainPageUrl = `${window.location.origin}/checkin/`;
             if (user) {
                 const userRef = doc(db, "users", user.uid);
                 const userSnap = await getDoc(userRef);
-                
                 if (userSnap.exists() && ['poweruser', 'admin', 'superadmin'].includes(userSnap.data().role)) {
                     loadingOverlay.classList.add('hidden');
                     appContainer.classList.remove('hidden');
