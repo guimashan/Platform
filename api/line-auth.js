@@ -1,13 +1,13 @@
 // Vercel Serverless Function
 // 檔案路徑: /api/line-auth.js
 
-// 引入 Firebase Admin SDK
-import admin from 'firebase-admin';
+// 使用 require 引入 Firebase Admin SDK
+const admin = require('firebase-admin');
 
-// 初始化 Firebase Admin
 // 檢查是否已經初始化，避免重複執行
 if (!admin.apps.length) {
   try {
+    // 從環境變數解析服務帳戶金鑰
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
@@ -17,9 +17,16 @@ if (!admin.apps.length) {
   }
 }
 
-export default async function handler(request, response) {
+// 使用 module.exports 導出 handler 函式
+module.exports = async (request, response) => {
+    // 只接受 POST 請求
     if (request.method !== 'POST') {
         return response.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    // 檢查 Firebase Admin SDK 是否成功初始化
+    if (!admin.apps.length) {
+        return response.status(500).json({ error: 'Server Configuration Error', details: 'Firebase Admin SDK failed to initialize.' });
     }
 
     const { code, redirect_uri } = request.body;
@@ -62,20 +69,18 @@ export default async function handler(request, response) {
         const now = new Date();
         const userSnap = await userRef.get();
 
+        const userData = {
+            displayName,
+            pictureUrl,
+            lastLoginAt: now,
+        };
+
         if (userSnap.exists) {
-            await userRef.update({
-                displayName,
-                pictureUrl,
-                lastLoginAt: now,
-            });
+            await userRef.update(userData);
         } else {
-            await userRef.set({
-                displayName,
-                pictureUrl,
-                role: 'user',
-                createdAt: now,
-                lastLoginAt: now,
-            });
+            userData.role = 'user';
+            userData.createdAt = now;
+            await userRef.set(userData);
         }
 
         // 4. 產生 Firebase 自訂令牌 (Custom Token)
@@ -88,5 +93,5 @@ export default async function handler(request, response) {
         console.error('Authentication process failed:', error);
         response.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
-}
+};
 
