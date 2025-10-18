@@ -344,7 +344,7 @@
 
         // Auth check
         onAuthStateChanged(auth, async (user) => {
-            const mainPageUrl = `${window.location.origin}/checkin/index.html`;
+            const mainPageUrl = `${window.location.origin}/checkin/`;
             if (user) {
                 const userRef = doc(db, "users", user.uid);
                 const userSnap = await getDoc(userRef);
@@ -353,11 +353,9 @@
                     appContainer.classList.remove('hidden');
                     initializeAdminApp();
                 } else {
-                    // --- FIX: Use a fully qualified URL ---
                     window.location.href = mainPageUrl;
                 }
             } else {
-                // --- FIX: Use a fully qualified URL ---
                 window.location.href = mainPageUrl;
             }
         });
