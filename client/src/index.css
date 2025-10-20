@@ -76,7 +76,7 @@
   --chart-4: 35 80% 52%;
   --chart-5: 15 75% 55%;
 
-  --font-sans: 'Noto Sans TC', 'Open Sans', sans-serif;
+  --font-sans: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: .75rem;
