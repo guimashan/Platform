@@ -13,13 +13,13 @@
 ### 前端
 - React 18
 - TypeScript
-- Wouter (路由)
+- React Router DOM (路由) - 從 Wouter 遷移
 - TanStack Query (資料獲取)
-- Tailwind CSS + Shadcn UI
+- Tailwind CSS + DaisyUI (UI 組件庫)
 - LINE LIFF SDK 2.22.0
 
 ### 後端
-- Express.js
+- Express.js + Vite (開發伺服器整合)
 - Firebase Admin SDK (認證)
 - Firebase Firestore (資料庫)
 - LINE LIFF 認證整合
@@ -88,7 +88,27 @@ shared/
 - status: 狀態
 
 ## 最近更改
+- 2025-10-21: 修復模組導入和型別錯誤
+  - 將 server/routes.ts 中的 `@shared/schema` 改為相對路徑 `../shared/schema`，避免 vite.config.ts 階段的路徑解析問題
+  - 修復 LINE 認證 API 中的 `pictureUrl` 處理，當 LINE 未提供頭像時正確省略該欄位
+  - 清除所有 LSP 錯誤
 - 2025-10-20: 從 GitHub 導入專案結構，設置 Firebase 和 LINE LIFF 整合
+
+## 已知問題
+### 端口配置問題
+- **問題描述**：`.replit` 檔案中 `waitForPort = 5000`，但應用運行在端口 5175（Vite 預設端口）
+- **影響**：工作流顯示為 FAILED，但應用本身啟動成功（Firebase Admin SDK 初始化成功，Vite ready）
+- **解決方案**：需要手動修改 `.replit` 檔案：
+  ```toml
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "npm run dev"
+  waitForPort = 5175  # 改為 5175
+
+  [[ports]]
+  localPort = 5175
+  externalPort = 80   # 改為 80 以對應外部端口
+  ```
 
 ## 用戶偏好
 - 使用繁體中文 (zh-Hant)
