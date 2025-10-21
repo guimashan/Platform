@@ -1,30 +1,27 @@
-import express, { type Express } from "express";
-import { mountRoutes } from "./routes";
+// server/index.ts
+import express, { Request, Response } from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import mountRoutes from "./routes";
 
-const app: Express = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+const app = express();
 
-// 掛載 API 路由
-const httpServer = mountRoutes(app);
+// ===== 基本中介層設定 =====
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// 端口處理（自動遞增找可用端口）
-let PORT = process.env.PORT ? parseInt(process.env.PORT) : 5173;
+// ===== 健康檢查（主應用層）=====
+app.get("/", (_req: Request, res: Response) => {
+  res.send("龜馬山 goLine 平台伺服器運行中 ✅");
+});
 
-function startServer(port: number): void {
-  httpServer
-    .listen(port, "0.0.0.0", () => {
-      console.log(`✅ Server running on http://0.0.0.0:${port}`);
-    })
-    .on("error", (err: NodeJS.ErrnoException) => {
-      if (err.code === "EADDRINUSE") {
-        console.log(`⚠️  Port ${port} is in use, trying ${port + 1}...`);
-        startServer(port + 1);
-      } else {
-        console.error("❌ Server error:", err);
-        process.exit(1);
-      }
-    });
-}
+// ===== 掛上自訂路由（含 /api/ping-admin）=====
+mountRoutes(app);
 
-startServer(PORT);
+// ===== 啟動伺服器 =====
+const PORT = process.env.PORT || 5175;
+app.listen(PORT, () => {
+  console.log(`🚀 Server 已啟動： http://localhost:${PORT}`);
+  console.log(`🌐 Replit 公網網址：使用 Dev URL 或 .replit Ports 查看`);
+});

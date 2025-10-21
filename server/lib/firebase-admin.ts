@@ -1,81 +1,56 @@
-import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
+import { initializeApp, getApps, cert, getApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 
-type ServiceAccountShape = {
-  project_id: string;
-  client_email: string;
-  private_key: string;
-  [k: string]: unknown;
-};
-
-function loadServiceAccountFromEnv(): ServiceAccountShape {
-  const key = "FIREBASE_SERVICE_ACCOUNT_JSON";
-  let raw = process.env[key];
-  
+function loadServiceAccount() {
+  let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!raw) {
-    throw new Error(`環境變數 ${key} 未設定。請在 Replit Secrets 中設定 Firebase Service Account JSON。`);
+    console.warn("[firebase-admin] FIREBASE_SERVICE_ACCOUNT_JSON 未設定");
+    return null;
   }
 
   raw = raw.trim();
 
-  // 支援 Base64 編碼的 JSON
-  let text = raw;
+  // 支援 Base64（Replit 有時自動編碼）
   if (!raw.startsWith("{")) {
     try {
-      text = Buffer.from(raw, "base64").toString("utf8");
-      if (!text.startsWith("{")) {
-        throw new Error("Base64 解碼後的內容不是有效的 JSON。");
-      }
+      raw = Buffer.from(raw, "base64").toString("utf8");
     } catch (e) {
-      throw new Error(`${key} 看起來像 Base64 但無法解碼為 JSON: ${(e as Error).message}`);
+      console.error("[firebase-admin] Base64 decode 失敗", e);
+      return null;
     }
   }
 
-  // 解析 JSON
-  let svc: ServiceAccountShape;
   try {
-    svc = JSON.parse(text) as ServiceAccountShape;
+    const json = JSON.parse(raw);
+    return json;
   } catch (e) {
-    throw new Error(`${key} 不是有效的 JSON: ${(e as Error).message}`);
+    console.error("[firebase-admin] JSON parse 失敗", e);
+    return null;
   }
-
-  // 處理 private_key 中的換行符號
-  if (typeof svc.private_key === "string") {
-    svc.private_key = svc.private_key
-      .replace(/\\n/g, "\n")
-      .replace(/\r\n/g, "\n");
-  }
-
-  // 檢查必要欄位
-  if (!svc.project_id || !svc.client_email || !svc.private_key) {
-    throw new Error(
-      `${key} 缺少必要欄位 (project_id/client_email/private_key)。`
-    );
-  }
-
-  return svc;
 }
 
-// 單例初始化 firebase-admin
-let adminApp: App;
+const svc = loadServiceAccount();
 
-try {
-  if (!getApps().length) {
-    const svc = loadServiceAccountFromEnv();
-    adminApp = initializeApp({
-      credential: cert({
-        projectId: svc.project_id,
-        clientEmail: svc.client_email,
-        privateKey: svc.private_key,
-      }),
-    });
-    console.log("✓ Firebase Admin SDK 初始化成功");
-  } else {
-    adminApp = getApps()[0]!;
-  }
-} catch (error) {
-  console.error("✗ Firebase Admin SDK 初始化失敗:", error);
-  throw error;
+const projectId =
+  svc?.project_id ||
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+  process.env.GOOGLE_CLOUD_PROJECT ||
+  "platform-bc783"; // 預設補值
+
+let app;
+if (!getApps().length) {
+  app = initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail: svc?.client_email,
+      privateKey: svc?.private_key,
+    }),
+  });
+  console.log("✅ Firebase Admin SDK 已初始化");
+} else {
+  app = getApp();
 }
 
-export const adminAuth = getAuth(adminApp);
+export const adminAuth = getAuth(app);
+export const adminApp = app;
+export const adminProjectId = projectId;
