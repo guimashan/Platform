@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { signInWithCustomToken } from "firebase/auth";
 import { authClient } from "@/lib/firebase";
 import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken } from "@/lib/liff";
@@ -11,7 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { LineAuthResponse } from "@shared/schema";
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [message, setMessage] = useState("正在初始化 LINE 登入...");
   const [error, setError] = useState<string | null>(null);
 
@@ -55,14 +55,14 @@ export default function LoginPage() {
         // 6. 登入成功，導向首頁
         setMessage("登入成功！");
         setTimeout(() => {
-          setLocation("/");
+          navigate("/");
         }, 1000);
       } catch (e: any) {
         console.error("登入錯誤:", e);
         setError(e?.message || String(e));
       }
     })();
-  }, [setLocation]);
+  }, [navigate]);
 
   return (
     <main className="min-h-screen flex items-center justify-center py-12 px-4">
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setLocation("/")}
+                  onClick={() => navigate("/")}
                   data-testid="button-back-home"
                 >
                   回首頁

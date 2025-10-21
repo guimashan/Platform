@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LogIn, ClipboardCheck, PackageSearch, Calendar } from "lucide-react";
@@ -50,7 +50,7 @@ export default function HomePage() {
         {services.map((service) => {
           const Icon = service.icon;
           return (
-            <Link key={service.href} href={service.href} data-testid={`link-${service.href.slice(1)}`}>
+            <Link key={service.href} to={service.href} data-testid={`link-${service.href.slice(1)}`}>
               <Card className="h-full hover-elevate active-elevate-2 transition-all cursor-pointer">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-xl font-semibold" data-testid={`title-${service.href.slice(1)}`}>
@@ -72,9 +72,6 @@ export default function HomePage() {
         })}
       </section>
 
-      <footer className="mt-16 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} 龜馬山 goLine 平台
-      </footer>
     </main>
   );
 }

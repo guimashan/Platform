@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { Plus, ArrowLeft } from "lucide-react";
 import type { Service, InsertService } from "@shared/schema";
 
 export default function ServicePage() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<InsertService>({
     userId: "",
@@ -81,7 +81,7 @@ export default function ServicePage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation("/")}
+            onClick={() => navigate("/")}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />

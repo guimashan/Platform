@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,7 +15,7 @@ import { CalendarPlus, ArrowLeft } from "lucide-react";
 import type { Schedule, InsertSchedule } from "@shared/schema";
 
 export default function SchedulePage() {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<InsertSchedule>({
     userId: "",
@@ -79,7 +79,7 @@ export default function SchedulePage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setLocation("/")}
+            onClick={() => navigate("/")}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />
