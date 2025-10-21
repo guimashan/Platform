@@ -46,11 +46,14 @@ export function mountRoutes(app: Express): Server {
 
       let user = await storage.getUser(userId);
       if (!user) {
-        user = await storage.createUser({
+        const userData: any = {
           id: userId,
           displayName,
-          pictureUrl,
-        });
+        };
+        if (pictureUrl) {
+          userData.pictureUrl = pictureUrl;
+        }
+        user = await storage.createUser(userData);
       }
 
       const customToken = await adminAuth.createCustomToken(userId);
