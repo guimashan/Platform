@@ -136,28 +136,26 @@ tsconfig.json        # TypeScript 配置
   - 但外部訪問無法連接（端口映射不正確）
   - Replit workflow 狀態顯示 FAILED
   
-- **解決方案**：需要手動修改 `.replit` 檔案
-  
-  找到以下兩個部分並修改：
-  
-  ```toml
-  # 1. 修改 workflow 等待的端口
-  [[workflows.workflow.tasks]]
-  task = "shell.exec"
-  args = "npm run dev"
-  waitForPort = 3000  # 從 5175 改為 3000
+- **解決方案**：由於 `.replit` 和 `package.json` 受 Replit 系統保護，請選擇以下任一方案：
 
-  # 2. 修改端口映射
-  [[ports]]
-  localPort = 3000    # 從 5175 改為 3000
-  externalPort = 80
-  exposeLocalhost = true
-  ```
-
+  **方案 A：重啟虛擬機器後手動編輯**
+  1. 在 Replit Shell 中執行：`kill 1`（會重啟環境）
+  2. 等待約 30 秒環境重啟完成
+  3. 在檔案樹點擊三點選單，勾選「Show hidden files」
+  4. 打開 `.replit` 檔案，手動修改：
+     - 第 35 行：`waitForPort = 3000`（從 5175 改為 3000）
+     - 第 38 行：`localPort = 3000`（從 5175 改為 3000）
+  
+  **方案 B：修改 Next.js 端口配合 .replit**
+  1. 在檔案樹中打開 `package.json`
+  2. 找到第 3 行：`"dev": "next dev -p 3000",`
+  3. 手動修改為：`"dev": "next dev -p 5175",`
+  4. 儲存後點擊 Run 按鈕重啟
+  
 - **為什麼無法自動修正**：
   - `.replit` 和 `package.json` 受 Replit 系統保護
   - 防止意外破壞環境配置
-  - 需要用戶手動修改確認
+  - AI 無法直接編輯這些受保護的檔案
 
 ### 備份位置
 Express + Vite 版本備份在：`/tmp/express_backup/`（如需回退）
