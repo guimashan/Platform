@@ -16,9 +16,13 @@ export async function POST(req: Request) {
     // TODO: 實作簽到邏輯（寫入 Firestore 等）
     // const checkinData = { uid, pid, lat, lng, timestamp: new Date().toISOString() };
     
-    return NextResponse.json({ ok: true, uid });
+    // 🔐 安全改進：不返回 uid（前端已知道自己的身份）
+    return NextResponse.json({ 
+      ok: true,
+      message: '簽到成功'
+    });
   } catch (err: any) {
-    // 🔐 安全修復：不返回詳細錯誤訊息
+    // 🔐 不返回詳細錯誤訊息
     console.error('[checkin/create] Error:', err?.message);
     
     return NextResponse.json(
