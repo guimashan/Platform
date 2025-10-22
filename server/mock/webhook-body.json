@@ -1,0 +1,13 @@
+{
+  "destination": "Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "events": [
+    {
+      "type": "message",
+      "replyToken": "dummy-reply-token",
+      "source": { "type": "user", "userId": "U_TEST_LINE_UID_123" },
+      "timestamp": 1670000000000,
+      "mode": "active",
+      "message": { "type": "text", "id": "1", "text": "奉香註冊" }
+    }
+  ]
+}
