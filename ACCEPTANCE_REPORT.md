@@ -60,3 +60,4 @@
 > 花社：「但至少香火不滅。」
 > Ｇ社靜靜收納所有歷史紀錄。
 
+- 2025-10-22 M3：統一 LINE_LOGIN/LIFF/Messaging API Secrets；程式全面改用新命名

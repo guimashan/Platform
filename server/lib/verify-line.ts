@@ -1,8 +1,8 @@
 export async function verifyLineIdToken(idToken: string) {
-  const channelId = process.env.LINE_CHANNEL_ID;
+  const channelId = process.env.LINE_BOT_CHANNEL_ID;
   
   if (!channelId) {
-    throw new Error("環境變數 LINE_CHANNEL_ID 未設定");
+    throw new Error("環境變數 LINE_BOT_CHANNEL_ID 未設定");
   }
 
   const body = new URLSearchParams({
