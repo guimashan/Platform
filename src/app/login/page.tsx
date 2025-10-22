@@ -1,75 +1,107 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import liff from "@line/liff";
+import { useRouter } from "next/navigation";
 import { signInWithCustomToken } from "firebase/auth";
 import { authClient } from "@/lib/firebase";
+import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken } from "@/lib/liff";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Spinner from "@/components/ui/spinner";
+import ErrorAlert from "@/components/ui/error-alert";
+import { apiRequest } from "@/lib/apiRequest";
+import type { LineAuthResponse } from "@/shared/schema";
 
-const ALLOW_PATHS = new Set<string>([
-  "/checkin",
-  "/ok",
-  "/service",
-  "/", // 允許回首頁
-]);
-
-function resolveNextPath(raw: string | null): string {
-  if (!raw) return "/"; // 【先不導 /checkin】避免你說的尚未就緒
-  try {
-    const url = new URL(raw, window.location.origin);
-    const path = url.pathname + (url.search || "") + (url.hash || "");
-    return ALLOW_PATHS.has(url.pathname) ? path : "/";
-  } catch {
-    return "/";
-  }
-}
-
-export default function Page() {
-  const [msg, setMsg] = useState("初始化中…");
+export default function LoginPage() {
+  const router = useRouter();
+  const [message, setMessage] = useState("正在初始化 LINE 登入...");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        // 1) 初始化 LIFF
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID! });
+        // 1. 初始化 LIFF
+        setMessage("正在初始化 LINE 登入...");
+        await initLiff();
 
-        // 2) 未登入就呼叫 LIFF login（回到本頁）
-        if (!liff.isLoggedIn()) {
-          liff.login(); // 會自動回來 /login
+        // 2. 檢查是否已登入
+        if (!isLiffLoggedIn()) {
+          setMessage("請使用 LINE 登入");
+          liffLogin();
           return;
         }
 
-        // 3) 拿 LINE ID Token
-        const idToken = await liff.getIDToken();
-        if (!idToken) throw new Error("無法取得 LINE ID Token");
-
-        // 4) 送到你的 server 交換 Firebase Custom Token
-        const res = await fetch("/api/auth/line", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data?.customToken) {
-          throw new Error(
-            `交換 customToken 失敗：${data?.error || res.statusText}`
-          );
+        // 3. 獲取 ID Token
+        setMessage("正在驗證身份...");
+        const idToken = await getLiffIdToken();
+        if (!idToken) {
+          throw new Error("無法取得 LINE 登入憑證");
         }
 
-        // 5) 登入 Firebase
-        await signInWithCustomToken(authClient, data.customToken);
-
-        // 6) 依網址的 next 導頁（白名單保護）
-        const next = resolveNextPath(
-          new URL(location.href).searchParams.get("next")
+        // 4. 呼叫後端 API 換取 Firebase Custom Token
+        setMessage("正在連接伺服器...");
+        const response = await apiRequest<LineAuthResponse>(
+          "POST",
+          "/api/auth/line",
+          { idToken }
         );
-        setMsg("登入成功，正在導向…");
-        location.replace(next);
+
+        if (!response.ok || !response.customToken) {
+          throw new Error(response.error || "伺服器認證失敗");
+        }
+
+        // 5. 使用 Custom Token 登入 Firebase
+        setMessage("正在完成登入...");
+        await signInWithCustomToken(authClient, response.customToken);
+
+        // 6. 登入成功，導向首頁
+        setMessage("登入成功！");
+        setTimeout(() => {
+          router.push("/");
+        }, 1000);
       } catch (e: any) {
-        setMsg(`登入失敗：${e?.message || String(e)}`);
+        console.error("登入錯誤:", e);
+        setError(e?.message || String(e));
       }
     })();
-  }, []);
+  }, [router]);
 
-  return <main style={{ padding: 24 }}>{msg}</main>;
+  return (
+    <main className="min-h-screen flex items-center justify-center py-12 px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle data-testid="text-login-title">LINE 登入</CardTitle>
+          <CardDescription>使用您的 LINE 帳號快速登入</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!error ? (
+            <div className="text-center">
+              <Spinner label={message} />
+            </div>
+          ) : (
+            <>
+              <ErrorAlert message={error} />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => router.push("/")}
+                  data-testid="button-back-home"
+                >
+                  回首頁
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => window.location.reload()}
+                  data-testid="button-retry"
+                >
+                  重試
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </main>
+  );
 }

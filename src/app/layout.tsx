@@ -1,5 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
+import { Providers } from "@/components/providers";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "龜馬山 goLine 平台",
@@ -10,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-Hant">
       <body style={{ margin: 0, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto" }}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
