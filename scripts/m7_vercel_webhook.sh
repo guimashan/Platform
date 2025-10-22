@@ -26,23 +26,29 @@ fi
 echo "== 🔧 更新 LINE Webhook 至正式網域 =="
 WEBHOOK_URL="https://${DOMAIN}/api/webhook"
 
-curl -s -X PUT \
+RESPONSE=$(curl -s -X PUT \
   -H "Authorization: Bearer ${LINE_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{\"endpoint\": \"${WEBHOOK_URL}\"}" \
-  "https://api.line.me/v2/bot/channel/webhook/endpoint" \
-  | jq .
+  "https://api.line.me/v2/bot/channel/webhook/endpoint")
+
+echo "Webhook 設定結果：$RESPONSE"
 
 # 3️⃣ 驗證 Webhook 狀態
 echo "== 🧪 驗證 LINE Webhook 狀態 =="
-curl -s -X GET \
+STATUS=$(curl -s -X GET \
   -H "Authorization: Bearer ${LINE_TOKEN}" \
-  "https://api.line.me/v2/bot/channel/webhook/endpoint" | jq .
+  "https://api.line.me/v2/bot/channel/webhook/endpoint")
 
-# 4️⃣ 測試 /api/ping-bot 與 /api/ping-admin
-echo "== 🔍 測試正式環境 API 狀態 =="
-curl -s "https://${DOMAIN}/api/ping-bot" | jq .
-curl -s "https://${DOMAIN}/api/ping-admin" | jq .
+echo "Webhook 狀態：$STATUS"
+
+# 4️⃣ 測試 API 狀態
+echo "== 🔍 測試正式環境 API =="
+PING_BOT=$(curl -s "https://${DOMAIN}/api/ping-bot")
+PING_ADMIN=$(curl -s "https://${DOMAIN}/api/ping-admin")
+
+echo "ping-bot 回應：$PING_BOT"
+echo "ping-admin 回應：$PING_ADMIN"
 
 # 5️⃣ 寫入驗收報告
 DATE="$(date +'%Y-%m-%d %H:%M:%S %Z')"
@@ -51,9 +57,9 @@ cat >> ACCEPTANCE_REPORT.md <<EOF
 ## M7 更新 Webhook（正式環境）
 - 執行時間：$DATE
 - 新 Webhook：$WEBHOOK_URL
-- 驗證結果：
-  - ping-bot：$(curl -s "https://${DOMAIN}/api/ping-bot" | jq -r .ok)
-  - ping-admin：$(curl -s "https://${DOMAIN}/api/ping-admin" | jq -r .ok)
+- 回應狀態：
+  - ping-bot：$PING_BOT
+  - ping-admin：$PING_ADMIN
 
 EOF
 
