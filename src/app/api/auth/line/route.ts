@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/admin";
 import { verifyLineIdToken } from "@/lib/verifyLine";
 
-export const runtime = "nodejs"; // 確保使用 Node 執行環境
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const startedAt = Date.now();
@@ -14,7 +14,6 @@ export async function POST(req: Request) {
       const body = await req.json();
       idToken = body?.idToken;
     } catch {
-      // 有時候前端送空或 Content-Type 不對
       return NextResponse.json(
         { ok: false, error: "INVALID_JSON_BODY" },
         { status: 400 }
@@ -27,13 +26,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) 驗 LINE ID Token
+    // 2) 驗證 LINE ID Token
     const payload = await verifyLineIdToken(idToken);
     const aud = payload.aud;
     const expected = process.env.LINE_CHANNEL_ID;
+    
+    // 🔐 安全修復：不要返回 Channel ID 給前端
     if (expected && aud && aud !== expected) {
       return NextResponse.json(
-        { ok: false, error: "AUD_MISMATCH", detail: { aud, expected } },
+        { ok: false, error: "AUD_MISMATCH" },
         { status: 400 }
       );
     }
@@ -49,19 +50,18 @@ export async function POST(req: Request) {
     // 3) 產生 Firebase Custom Token
     const customToken = await adminAuth.createCustomToken(sub);
 
-    // 4) 回傳
+    // 4) 回傳（不包含機密資訊）
     return NextResponse.json(
       { ok: true, customToken, userId: sub, tookMs: Date.now() - startedAt },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
   } catch (err: any) {
-    // 會出現在 Vercel Logs，方便定位
-    console.error("[/api/auth/line] ERROR:", {
-      message: err?.message,
-      stack: err?.stack,
-    });
+    // 🔐 安全修復：只記錄到伺服器日誌，不洩漏詳細錯誤
+    console.error("[/api/auth/line] ERROR:", err?.message);
+    
+    // 返回通用錯誤訊息，不洩漏內部細節
     return NextResponse.json(
-      { ok: false, error: "INTERNAL_ERROR", detail: err?.message || String(err) },
+      { ok: false, error: "AUTHENTICATION_FAILED" },
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
