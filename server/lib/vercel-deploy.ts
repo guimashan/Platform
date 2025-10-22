@@ -75,8 +75,10 @@ export async function triggerVercelDeployment(): Promise<any> {
   }
 
   const data = await response.json();
+  
+  // Deploy Hook 回應格式: { job: { id, state, createdAt } }
   return {
-    job: data.job,
+    job: data.job || {},
     message: "部署已觸發，請至 Vercel Dashboard 查看進度",
   };
 }
@@ -85,11 +87,11 @@ export async function triggerVercelDeployment(): Promise<any> {
  * 同步環境變數到 Vercel
  * 將 Replit Secrets 同步到 Vercel 專案
  */
-export async function syncEnvToVercel(envVars: Record<string, string>): Promise<void> {
+export async function syncEnvToVercel(envVars: Record<string, string>): Promise<{ created: number; updated: number; errors: string[] }> {
   const { token, projectId } = getVercelConfig();
 
-  // 先取得現有環境變數
-  const existingEnvs = await fetch(
+  // 先取得現有環境變數（包含 id）
+  const existingEnvsRes = await fetch(
     `${VERCEL_API_BASE}/v9/projects/${projectId}/env`,
     {
       headers: {
@@ -98,55 +100,86 @@ export async function syncEnvToVercel(envVars: Record<string, string>): Promise<
     }
   );
 
-  if (!existingEnvs.ok) {
-    throw new Error(`無法取得現有環境變數: ${existingEnvs.status}`);
+  if (!existingEnvsRes.ok) {
+    const errorText = await existingEnvsRes.text();
+    throw new Error(`無法取得現有環境變數: ${existingEnvsRes.status} - ${errorText}`);
   }
 
-  const existingData = await existingEnvs.json();
-  const existingKeys = new Set(
-    (existingData.envs || []).map((env: any) => env.key)
+  const existingData = await existingEnvsRes.json();
+  const existingEnvsMap = new Map(
+    (existingData.envs || []).map((env: any) => [env.key, env.id])
   );
+
+  let created = 0;
+  let updated = 0;
+  const errors: string[] = [];
 
   // 批次更新或新增環境變數
   for (const [key, value] of Object.entries(envVars)) {
-    const envPayload: VercelEnvVariable = {
-      key,
-      value,
-      target: ["production", "preview", "development"],
-      type: "encrypted",
-    };
+    try {
+      const envPayload: VercelEnvVariable = {
+        key,
+        value,
+        target: ["production", "preview", "development"],
+        type: "encrypted",
+      };
 
-    if (existingKeys.has(key)) {
-      // 更新現有變數
-      await fetch(
-        `${VERCEL_API_BASE}/v9/projects/${projectId}/env/${key}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            value: envPayload.value,
-            target: envPayload.target,
-          }),
+      const existingId = existingEnvsMap.get(key);
+
+      if (existingId) {
+        // 更新現有變數（使用 id 而非 key）
+        const updateRes = await fetch(
+          `${VERCEL_API_BASE}/v9/projects/${projectId}/env/${existingId}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              value: envPayload.value,
+              target: envPayload.target,
+            }),
+          }
+        );
+
+        if (!updateRes.ok) {
+          const errorText = await updateRes.text();
+          errors.push(`更新 ${key} 失敗: ${updateRes.status} - ${errorText}`);
+        } else {
+          updated++;
         }
-      );
-    } else {
-      // 新增變數
-      await fetch(
-        `${VERCEL_API_BASE}/v10/projects/${projectId}/env`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(envPayload),
+      } else {
+        // 新增變數
+        const createRes = await fetch(
+          `${VERCEL_API_BASE}/v10/projects/${projectId}/env`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(envPayload),
+          }
+        );
+
+        if (!createRes.ok) {
+          const errorText = await createRes.text();
+          errors.push(`新增 ${key} 失敗: ${createRes.status} - ${errorText}`);
+        } else {
+          created++;
         }
-      );
+      }
+    } catch (err: any) {
+      errors.push(`處理 ${key} 時發生錯誤: ${err.message}`);
     }
   }
+
+  if (errors.length > 0) {
+    throw new Error(`同步環境變數時發生錯誤:\n${errors.join('\n')}`);
+  }
+
+  return { created, updated, errors };
 }
 
 /**

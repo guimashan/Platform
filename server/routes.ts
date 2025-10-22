@@ -142,19 +142,38 @@ export function mountRoutes(app: Express) {
   });
 
   // 5) Vercel 部署管理 API
+  // 認證中間件：保護部署管理端點
+  const verifyDeployAuth = (req: Request, res: Response, next: any) => {
+    const authHeader = req.headers.authorization;
+    const adminKey = process.env.VERCEL_ADMIN_API_KEY;
+    
+    // 防止配置錯誤：如果 adminKey 未設定，拒絕所有請求
+    if (!adminKey) {
+      return res.status(500).json({ 
+        ok: false, 
+        error: "伺服器配置錯誤：VERCEL_ADMIN_API_KEY 未設定" 
+      });
+    }
+    
+    // 檢查是否提供了正確的 admin key
+    if (!authHeader || authHeader !== `Bearer ${adminKey}`) {
+      return res.status(401).json({ 
+        ok: false, 
+        error: "未授權：需要 VERCEL_ADMIN_API_KEY 認證" 
+      });
+    }
+    
+    next();
+  };
   
   // 觸發部署
-  app.post("/api/deploy/trigger", async (_req: Request, res: Response) => {
+  app.post("/api/deploy/trigger", verifyDeployAuth, async (_req: Request, res: Response) => {
     try {
       const result = await triggerVercelDeployment();
       res.json({
         ok: true,
-        deployment: {
-          id: result.id,
-          url: result.url,
-          readyState: result.readyState,
-          createdAt: result.createdAt,
-        },
+        job: result.job,
+        message: result.message,
       });
     } catch (err: any) {
       res.status(500).json({ ok: false, error: err?.message || String(err) });
@@ -162,15 +181,21 @@ export function mountRoutes(app: Express) {
   });
 
   // 同步環境變數到 Vercel
-  app.post("/api/deploy/sync-env", async (req: Request, res: Response) => {
+  app.post("/api/deploy/sync-env", verifyDeployAuth, async (req: Request, res: Response) => {
     try {
       const envVars = req.body || {};
       if (!Object.keys(envVars).length) {
         return res.status(400).json({ ok: false, error: "沒有提供環境變數" });
       }
       
-      await syncEnvToVercel(envVars);
-      res.json({ ok: true, message: "環境變數同步成功", count: Object.keys(envVars).length });
+      const result = await syncEnvToVercel(envVars);
+      res.json({ 
+        ok: true, 
+        message: "環境變數同步成功", 
+        created: result.created,
+        updated: result.updated,
+        total: Object.keys(envVars).length 
+      });
     } catch (err: any) {
       res.status(500).json({ ok: false, error: err?.message || String(err) });
     }
@@ -197,7 +222,7 @@ export function mountRoutes(app: Express) {
   });
 
   // 一鍵部署：同步環境變數 + 觸發部署
-  app.post("/api/deploy/full", async (_req: Request, res: Response) => {
+  app.post("/api/deploy/full", verifyDeployAuth, async (_req: Request, res: Response) => {
     try {
       // 收集需要同步的環境變數
       const envVarsToSync: Record<string, string> = {};
@@ -235,7 +260,7 @@ export function mountRoutes(app: Express) {
       }
       
       // 同步環境變數
-      await syncEnvToVercel(envVarsToSync);
+      const syncResult = await syncEnvToVercel(envVarsToSync);
       
       // 觸發部署
       const deployment = await triggerVercelDeployment();
@@ -243,11 +268,14 @@ export function mountRoutes(app: Express) {
       res.json({
         ok: true,
         message: "環境變數同步完成，部署已觸發",
-        envCount: Object.keys(envVarsToSync).length,
+        sync: {
+          created: syncResult.created,
+          updated: syncResult.updated,
+          total: Object.keys(envVarsToSync).length,
+        },
         deployment: {
-          id: deployment.id,
-          url: deployment.url,
-          readyState: deployment.readyState,
+          job: deployment.job,
+          message: deployment.message,
         },
       });
     } catch (err: any) {
