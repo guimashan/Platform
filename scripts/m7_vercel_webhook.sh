@@ -1,70 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# === 參數 ===
-DOMAIN="${DOMAIN:-go.guimashan.org.tw}"     # 正式網域（可改）
-PROJECT_SLUG="platform"
+# ====== 可調參數 ======
+DOMAIN="${DOMAIN:-go.guimashan.org.tw}"          # 正式網域（可改）
+PROJECT_SLUG="platform"                          # Vercel 專案名（資訊用）
+WEBHOOK_URL="https://${DOMAIN}/api/webhook"
+
+# ====== 從 Replit Secrets 取用 ======
 TOKEN="${VERCEL_ADMIN_API_KEY:-}"
 LINE_ID="${LINE_BOT_CHANNEL_ID:-}"
 LINE_TOKEN="${LINE_BOT_ACCESS_TOKEN:-}"
+DEPLOY_HOOK="${VERCEL_DEPLOY_HOOK_URL:-}"
 
-# === 檢查 ===
-[[ -n "$TOKEN" ]] || { echo "❌ 缺少 VERCEL_ADMIN_API_KEY"; exit 1; }
-[[ -n "$LINE_ID" ]] || { echo "❌ 缺少 LINE_BOT_CHANNEL_ID"; exit 1; }
-[[ -n "$LINE_TOKEN" ]] || { echo "❌ 缺少 LINE_BOT_ACCESS_TOKEN"; exit 1; }
+# ====== 檢查必要環境 ======
+[[ -n "$TOKEN"     ]] || { echo "❌ 缺少 VERCEL_ADMIN_API_KEY"; exit 1; }
+[[ -n "$LINE_ID"   ]] || { echo "❌ 缺少 LINE_BOT_CHANNEL_ID"; exit 1; }
+[[ -n "$LINE_TOKEN"]] || { echo "❌ 缺少 LINE_BOT_ACCESS_TOKEN"; exit 1; }
 
-echo "== 🧩 M7 任務：Vercel 正式環境部署 + LINE Webhook 同步 =="
+echo "== 🧩 M7 任務：Vercel 正式環境 + LINE Webhook 同步 =="
 
-# 1️⃣ 部署至 Vercel Production（略）
-if [ -f scripts/m7_deploy.sh ]; then
-  bash scripts/m7_deploy.sh || true
+# 1) 觸發 Vercel Deploy（如果有設定 Deploy Hook）
+if [[ -n "${DEPLOY_HOOK}" ]]; then
+  echo "== 🚀 觸發 Vercel Deploy Hook =="
+  curl -fsS -X POST "$DEPLOY_HOOK" >/dev/null || true
 else
-  echo "⚠️ 找不到 m7_deploy.sh，略過部署步驟。"
+  echo "⚠️ 未設定 VERCEL_DEPLOY_HOOK_URL，略過自動部署。"
 fi
 
-# 2️⃣ 更新 LINE Webhook URL
-echo "== 🔧 更新 LINE Webhook 至正式網域 =="
-WEBHOOK_URL="https://${DOMAIN}/api/webhook"
-
-RESPONSE=$(curl -s -X PUT \
+# 2) 更新 LINE Webhook 指到正式網域
+echo "== 🔧 更新 LINE Webhook 到：${WEBHOOK_URL} =="
+curl -fsS -X PUT "https://api.line.me/v2/bot/channel/webhook/endpoint" \
   -H "Authorization: Bearer ${LINE_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d "{\"endpoint\": \"${WEBHOOK_URL}\"}" \
-  "https://api.line.me/v2/bot/channel/webhook/endpoint")
+  -d "{\"endpoint\":\"${WEBHOOK_URL}\"}" >/dev/null
 
-echo "Webhook 設定結果：$RESPONSE"
+# 3) 讀取目前 Webhook 狀態（純顯示）
+echo "== 🔍 讀取 LINE Webhook 狀態 =="
+curl -fsS -X GET "https://api.line.me/v2/bot/channel/webhook/endpoint" \
+  -H "Authorization: Bearer ${LINE_TOKEN}" || true
+echo
 
-# 3️⃣ 驗證 Webhook 狀態
-echo "== 🧪 驗證 LINE Webhook 狀態 =="
-STATUS=$(curl -s -X GET \
-  -H "Authorization: Bearer ${LINE_TOKEN}" \
-  "https://api.line.me/v2/bot/channel/webhook/endpoint")
+# 4) 健康檢查（/api/ping-bot 與 /api/ping-admin）
+echo "== 🩺 API 健康檢查 =="
+for PATH in "/api/ping-bot" "/api/ping-admin"; do
+  URL="https://${DOMAIN}${PATH}"
+  CODE="$(curl -s -o /dev/null -w "%{http_code}" "$URL" || echo 000)"
+  echo "• ${URL} -> HTTP ${CODE}"
+done
 
-echo "Webhook 狀態：$STATUS"
+# 5) 寫入驗收報告（不 push 到 GitHub，避免 Secret Scan 擋下）
+echo "== 📝 寫入驗收報告（本地 ACCEPTANCE_REPORT.md） =="
+DATE="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+{
+  echo ""
+  echo "## M7 正式環境部署（${DATE})"
+  echo "- Vercel 專案：${PROJECT_SLUG}"
+  echo "- 正式網域：${DOMAIN}"
+  echo "- LINE Webhook：${WEBHOOK_URL}"
+} >> ACCEPTANCE_REPORT.md
 
-# 4️⃣ 測試 API 狀態
-echo "== 🔍 測試正式環境 API =="
-PING_BOT=$(curl -s "https://${DOMAIN}/api/ping-bot")
-PING_ADMIN=$(curl -s "https://${DOMAIN}/api/ping-admin")
-
-echo "ping-bot 回應：$PING_BOT"
-echo "ping-admin 回應：$PING_ADMIN"
-
-# 5️⃣ 寫入驗收報告
-DATE="$(date +'%Y-%m-%d %H:%M:%S %Z')"
-cat >> ACCEPTANCE_REPORT.md <<EOF
-
-## M7 更新 Webhook（正式環境）
-- 執行時間：$DATE
-- 新 Webhook：$WEBHOOK_URL
-- 回應狀態：
-  - ping-bot：$PING_BOT
-  - ping-admin：$PING_ADMIN
-
-EOF
-
-git add ACCEPTANCE_REPORT.md
-git commit -m "chore(M7): Update LINE Webhook to Vercel domain @ $DATE" || true
-git push origin main --force || true
-
-echo "✅ M7 完成：Webhook 已指向 ${WEBHOOK_URL}"
+echo "== ✅ M7 完成：請到 LINE Developers → Messaging API → Webhook settings 按 Verify 確認 =="
