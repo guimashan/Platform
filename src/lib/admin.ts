@@ -1,6 +1,7 @@
 // src/lib/admin.ts
 import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 type ServiceAccountShape = {
   project_id: string;
@@ -70,3 +71,4 @@ if (!getApps().length) {
 }
 
 export const adminAuth = getAuth(adminApp);
+export const adminDb = getFirestore(adminApp);
