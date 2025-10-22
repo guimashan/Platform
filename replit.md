@@ -109,12 +109,18 @@ tsconfig.json        # TypeScript 配置
 詳細部署指南請參閱 `VERCEL_DEPLOYMENT_GUIDE.md`
 
 ## 最近更改
+- **2025-10-22 17:30**: 🧹 清理專案目錄結構
+  - 刪除舊版驗收報告（V1.0、V1.1）
+  - 移除 Vite 殘留檔案（.vite/ 目錄）
+  - 清理不需要的腳本（start.sh、scripts/）
+  - 刪除測試用附件（attached_assets/）
+  - 專案目錄更加簡潔清晰
 - **2025-10-22 16:40**: ✅ 完全恢復到 Next.js 架構
   - 從 Vercel 部署（commit ca3c28b6）下載原始 Next.js 版本
   - 移除 Express + Vite 架構（client/、server/、shared/ 目錄）
   - 恢復 Next.js App Router 結構（src/app/ 目錄）
   - 安裝 Next.js 14.2.33 及相關依賴
-  - **已知問題**：端口配置衝突（見下方）
+  - 修改 package.json 端口為 5175 以配合 .replit 配置
 - 2025-10-22: 新增 Vercel 自動部署管理系統
   - 實作環境變數同步到 Vercel 功能
   - 整合 Deploy Hook 觸發機制
