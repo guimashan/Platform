@@ -1,4 +1,5 @@
 import { adminDb } from "../lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 /**
  * 專案內統一的角色欄位格式：
@@ -68,7 +69,7 @@ export async function upsertRoleByKeyword(opts: {
 
   const ref = adminDb.collection("users").doc(lineUserId);
   const snap = await ref.get();
-  const now = (await import("firebase-admin")).firestore.FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
 
   if (!snap.exists) {
     const payload: any = {
