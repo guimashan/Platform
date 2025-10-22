@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>LIFF 測試頁</title>
+  </head>
+  <body>
+    <h2>LIFF 測試頁</h2>
+    <p id="status">初始化中...</p>
+
+    <!-- 載入 LINE LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+      (async () => {
+        try {
+          // 👉 在這裡放你的 LIFF ID（例如 2008269293-Nl2pZBpV）
+          await liff.init({ liffId: "2008269293-Nl2pZBpV" });
+
+          // 如果沒登入就先登入
+          if (!liff.isLoggedIn()) liff.login();
+
+          const profile = await liff.getProfile();
+          document.getElementById("status").innerHTML = `
+            ✅ LIFF 啟動成功！<br>
+            使用者：${profile.displayName}<br>
+            userId：${profile.userId}
+          `;
+        } catch (err) {
+          document.getElementById("status").textContent =
+            "❌ LIFF 初始化失敗：" + err;
+        }
+      })();
+    </script>
+  </body>
+</html>
