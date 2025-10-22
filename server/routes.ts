@@ -2,6 +2,12 @@ import type { Express, Request, Response } from "express";
 import { verifyLineIdToken } from "./lib/verify-line";
 import { verifyLineSignature, replyMessage } from "./lib/line-bot";
 import { upsertRoleByKeyword } from "./services/roles";
+import {
+  triggerVercelDeployment,
+  syncEnvToVercel,
+  getVercelDomains,
+  getLatestDeployment,
+} from "./lib/vercel-deploy";
 
 // 關鍵字對照表
 const KEYWORD_MAP: Record<string, { text?: string; url?: string }> = {
@@ -132,6 +138,120 @@ export function mountRoutes(app: Express) {
       res.json({ ok: true, data: doc.data() });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message || "internal_error" });
+    }
+  });
+
+  // 5) Vercel 部署管理 API
+  
+  // 觸發部署
+  app.post("/api/deploy/trigger", async (_req: Request, res: Response) => {
+    try {
+      const result = await triggerVercelDeployment();
+      res.json({
+        ok: true,
+        deployment: {
+          id: result.id,
+          url: result.url,
+          readyState: result.readyState,
+          createdAt: result.createdAt,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
+  // 同步環境變數到 Vercel
+  app.post("/api/deploy/sync-env", async (req: Request, res: Response) => {
+    try {
+      const envVars = req.body || {};
+      if (!Object.keys(envVars).length) {
+        return res.status(400).json({ ok: false, error: "沒有提供環境變數" });
+      }
+      
+      await syncEnvToVercel(envVars);
+      res.json({ ok: true, message: "環境變數同步成功", count: Object.keys(envVars).length });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
+  // 取得 Vercel 域名
+  app.get("/api/deploy/domains", async (_req: Request, res: Response) => {
+    try {
+      const domains = await getVercelDomains();
+      res.json({ ok: true, domains });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
+  // 取得最新部署狀態
+  app.get("/api/deploy/status", async (_req: Request, res: Response) => {
+    try {
+      const deployment = await getLatestDeployment();
+      res.json({ ok: true, deployment });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
+    }
+  });
+
+  // 一鍵部署：同步環境變數 + 觸發部署
+  app.post("/api/deploy/full", async (_req: Request, res: Response) => {
+    try {
+      // 收集需要同步的環境變數
+      const envVarsToSync: Record<string, string> = {};
+      
+      // Firebase 環境變數
+      const firebaseVars = [
+        "FIREBASE_SERVICE_ACCOUNT_JSON",
+        "NEXT_PUBLIC_FIREBASE_API_KEY",
+        "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+        "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+        "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+        "NEXT_PUBLIC_FIREBASE_APP_ID",
+      ];
+      
+      // LINE 環境變數
+      const lineVars = [
+        "LINE_BOT_CHANNEL_ID",
+        "LINE_BOT_CHANNEL_SECRET",
+        "LINE_BOT_CHANNEL_ACCESS_TOKEN",
+        "LINE_CHANNEL_ID",
+        "LINE_CHANNEL_SECRET",
+        "NEXT_PUBLIC_LINE_LIFF_ID",
+      ];
+      
+      // Session 環境變數
+      const sessionVars = ["SESSION_SECRET"];
+      
+      const allVars = [...firebaseVars, ...lineVars, ...sessionVars];
+      
+      for (const key of allVars) {
+        const value = process.env[key];
+        if (value) {
+          envVarsToSync[key] = value;
+        }
+      }
+      
+      // 同步環境變數
+      await syncEnvToVercel(envVarsToSync);
+      
+      // 觸發部署
+      const deployment = await triggerVercelDeployment();
+      
+      res.json({
+        ok: true,
+        message: "環境變數同步完成，部署已觸發",
+        envCount: Object.keys(envVarsToSync).length,
+        deployment: {
+          id: deployment.id,
+          url: deployment.url,
+          readyState: deployment.readyState,
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err?.message || String(err) });
     }
   });
 }

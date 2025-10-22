@@ -87,7 +87,41 @@ shared/
 - shift: 班別
 - status: 狀態
 
+## Vercel 部署管理
+
+本專案支援自動部署到 Vercel，提供以下功能：
+
+### API 端點
+- `GET /api/deploy/domains` - 查詢 Vercel 正式域名
+- `POST /api/deploy/sync-env` - 同步環境變數到 Vercel
+- `POST /api/deploy/trigger` - 觸發 Vercel 部署
+- `GET /api/deploy/status` - 查詢部署狀態
+- `POST /api/deploy/full` - 一鍵完整部署（同步環境變數 + 觸發部署）
+
+### 必要設定
+1. **Vercel Secrets**：
+   - `VERCEL_ADMIN_API_KEY` - Vercel API Token
+   - `VERCEL_PROJECT_ID` - 專案 ID
+   - `VERCEL_ORG_ID` - 組織/團隊 ID
+   - `VERCEL_DEPLOY_HOOK_URL` - Deploy Hook URL（需在 Vercel Dashboard 建立）
+
+2. **正式 Webhook URL**：
+   - 開發環境：`https://${REPLIT_DEV_DOMAIN}/api/webhook`
+   - 正式環境：`https://您的vercel域名/api/webhook`（如 `https://go.guimashan.org.tw/api/webhook`）
+
+3. **SuperAdmin 機制**：
+   - 第一個註冊的使用者自動成為 SuperAdmin
+   - 擁有所有系統的 admin 權限（checkin、schedule、service）
+   - `isSuperAdmin: true` 標記於 Firestore user 文件
+
+詳細部署指南請參閱 `VERCEL_DEPLOYMENT_GUIDE.md`
+
 ## 最近更改
+- 2025-10-22: 新增 Vercel 自動部署管理系統
+  - 實作環境變數同步到 Vercel 功能
+  - 整合 Deploy Hook 觸發機制
+  - 新增 SuperAdmin 自動授權（第一個用戶）
+  - 建立完整的部署指南文件
 - 2025-10-21: 修復模組導入和型別錯誤
   - 將 server/routes.ts 中的 `@shared/schema` 改為相對路徑 `../shared/schema`，避免 vite.config.ts 階段的路徑解析問題
   - 修復 LINE 認證 API 中的 `pictureUrl` 處理，當 LINE 未提供頭像時正確省略該欄位
