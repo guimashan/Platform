@@ -8,6 +8,7 @@ import { FieldValue } from "firebase-admin/firestore";
  *   lineUserId: string,
  *   displayName?: string,
  *   pictureUrl?: string,
+ *   isSuperAdmin?: boolean,  // 超級管理員標記
  *   roles: {
  *     checkin?: "user" | "poweruser" | "admin",
  *     schedule?: "user" | "poweruser" | "admin",
@@ -72,6 +73,10 @@ export async function upsertRoleByKeyword(opts: {
   const now = FieldValue.serverTimestamp();
 
   if (!snap.exists) {
+    // 檢查是否為第一個用戶（SuperAdmin）
+    const usersSnapshot = await adminDb.collection("users").limit(1).get();
+    const isFirstUser = usersSnapshot.empty;
+
     const payload: any = {
       lineUserId,
       displayName: displayName || null,
@@ -81,13 +86,31 @@ export async function upsertRoleByKeyword(opts: {
       createdAt: now,
       updatedAt: now,
     };
-    if (rule.level === "resigned") {
+
+    // 第一個用戶自動成為 SuperAdmin
+    if (isFirstUser) {
+      payload.isSuperAdmin = true;
+      payload.roles = {
+        checkin: "admin",
+        schedule: "admin",
+        service: "admin",
+      };
+      payload.status = "active";
+    } else if (rule.level === "resigned") {
       payload.status = "resigned";
     } else {
       payload.roles[rule.path] = rule.level;
     }
+
     await ref.set(payload, { merge: true });
-    return { updated: true, created: true, keyword, roles: payload.roles, status: payload.status };
+    return { 
+      updated: true, 
+      created: true, 
+      keyword, 
+      roles: payload.roles, 
+      status: payload.status,
+      isSuperAdmin: payload.isSuperAdmin || false
+    };
   } else {
     const data = snap.data() || {};
     const roles: Roles = { ...(data.roles || {}) };
