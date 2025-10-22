@@ -34,8 +34,9 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5175
 
+
 [[ports]]
-localPort = 5175
+localPort =1` 5175
 externalPort = 80
 
 [[ports]]
