@@ -1,4 +1,4 @@
-import { adminDb } from "../firebaseAdmin";
+import { adminDb } from "../lib/firebase-admin";
 
 /**
  * 專案內統一的角色欄位格式：

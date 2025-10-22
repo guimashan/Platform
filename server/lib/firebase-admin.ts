@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert, getApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 function loadServiceAccount() {
   let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -53,4 +54,5 @@ if (!getApps().length) {
 
 export const adminAuth = getAuth(app);
 export const adminApp = app;
+export const adminDb = getFirestore(app);
 export const adminProjectId = projectId;
