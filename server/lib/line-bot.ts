@@ -1,8 +1,8 @@
 import crypto from "crypto";
 
-export const LINE_BOT_CHANNEL_ID = process.env.LINE_BOT_CHANNEL_ID || "";
-export const LINE_BOT_CHANNEL_SECRET = process.env.LINE_BOT_CHANNEL_SECRET || "";
-export const LINE_BOT_CHANNEL_ACCESS_TOKEN = process.env.LINE_BOT_CHANNEL_ACCESS_TOKEN || "";
+export const LINE_BOT_CHANNEL_ID = process.env.LINE_BOT_CHANNEL_ID || process.env.LINE_CHANNEL_ID || "";
+export const LINE_BOT_CHANNEL_SECRET = process.env.LINE_BOT_CHANNEL_SECRET || process.env.LINE_CHANNEL_SECRET || "";
+export const LINE_BOT_CHANNEL_ACCESS_TOKEN = process.env.LINE_BOT_CHANNEL_ACCESS_TOKEN || process.env.LINE_BOT_ACCESS_TOKEN || "";
 export const LINE_BOT_WEBHOOK_URL = process.env.LINE_BOT_WEBHOOK_URL || "";
 
 /**

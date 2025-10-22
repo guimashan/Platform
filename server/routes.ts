@@ -102,9 +102,10 @@ export function mountRoutes(app: Express) {
   });
 
   // 3) Bot 健康檢查
-  app.get("/api/ping-bot", (_req: Request, res: Response) => {
-    const ok = !!(process.env.LINE_BOT_CHANNEL_ID && process.env.LINE_BOT_CHANNEL_SECRET && process.env.LINE_BOT_CHANNEL_ACCESS_TOKEN);
-    res.json({ ok, channelIdSet: !!process.env.LINE_BOT_CHANNEL_ID });
+  app.get("/api/ping-bot", async (_req: Request, res: Response) => {
+    const { LINE_BOT_CHANNEL_ID, LINE_BOT_CHANNEL_SECRET, LINE_BOT_CHANNEL_ACCESS_TOKEN } = await import("./lib/line-bot");
+    const ok = !!(LINE_BOT_CHANNEL_ID && LINE_BOT_CHANNEL_SECRET && LINE_BOT_CHANNEL_ACCESS_TOKEN);
+    res.json({ ok, channelIdSet: !!LINE_BOT_CHANNEL_ID });
   });
 
   // 4) 後台查使用者（臨時管理查詢；日後可加權限）
