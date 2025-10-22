@@ -1,9 +1,16 @@
+# 0) 進到專案根目錄
+cd ~/workspace
+
+# 1) 準備腳本
+mkdir -p scripts
+
+cat > scripts/m7_vercel_webhook.sh <<'BASH'
 #!/usr/bin/env bash
 set -euo pipefail
 
 # ====== 可調參數 ======
-DOMAIN="${DOMAIN:-go.guimashan.org.tw}"
-PROJECT_SLUG="platform"
+DOMAIN="${DOMAIN:-go.guimashan.org.tw}"          # 正式網域（可改）
+PROJECT_SLUG="platform"                          # Vercel 專案名（資訊用）
 WEBHOOK_URL="https://${DOMAIN}/api/webhook"
 
 # ====== 從 Replit Secrets 取用 ======
@@ -13,9 +20,9 @@ LINE_TOKEN="${LINE_BOT_ACCESS_TOKEN:-}"
 DEPLOY_HOOK="${VERCEL_DEPLOY_HOOK_URL:-}"
 
 # ====== 檢查必要環境 ======
-[[ -n "$TOKEN" ]] || { echo "❌ 缺少 VERCEL_ADMIN_API_KEY"; exit 1; }
-[[ -n "$LINE_ID" ]] || { echo "❌ 缺少 LINE_BOT_CHANNEL_ID"; exit 1; }
-[[ -n "$LINE_TOKEN" ]] || { echo "❌ 缺少 LINE_BOT_ACCESS_TOKEN"; exit 1; }
+[[ -n "$TOKEN"     ]] || { echo "❌ 缺少 VERCEL_ADMIN_API_KEY"; exit 1; }
+[[ -n "$LINE_ID"   ]] || { echo "❌ 缺少 LINE_BOT_CHANNEL_ID"; exit 1; }
+[[ -n "$LINE_TOKEN"]] || { echo "❌ 缺少 LINE_BOT_ACCESS_TOKEN"; exit 1; }
 
 echo "== 🧩 M7 任務：Vercel 正式環境 + LINE Webhook 同步 =="
 
@@ -60,3 +67,9 @@ DATE="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 } >> ACCEPTANCE_REPORT.md
 
 echo "== ✅ M7 完成：請到 LINE Developers → Messaging API → Webhook settings 按 Verify 確認 =="
+BASH
+
+chmod +x scripts/m7_vercel_webhook.sh
+
+# 2) 執行（如需改正式網域，可在前面加 DOMAIN=xxx）
+DOMAIN=go.guimashan.org.tw ./scripts/m7_vercel_webhook.sh
