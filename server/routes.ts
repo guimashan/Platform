@@ -5,20 +5,33 @@ import { upsertRoleByKeyword } from "./services/roles";
 
 // 關鍵字對照表
 const KEYWORD_MAP: Record<string, { text?: string; url?: string }> = {
+  // 奉香系統（添加多種變體）
   "奉香註冊": { text: "已為您註冊奉香系統使用者權限", url: "https://go.guimashan.org.tw" },
+  "奉香": { text: "已為您註冊奉香系統使用者權限", url: "https://go.guimashan.org.tw" },
   "奉香管理註冊": { text: "已為您註冊奉香系統管理權限", url: "https://go.guimashan.org.tw" },
+  "奉香管理": { text: "已為您註冊奉香系統管理權限", url: "https://go.guimashan.org.tw" },
   "奉香系統註冊": { text: "已為您註冊奉香系統管理員權限", url: "https://go.guimashan.org.tw" },
+  "奉香系統": { text: "已為您註冊奉香系統管理員權限", url: "https://go.guimashan.org.tw" },
   "奉香退場": { text: "已將您從奉香系統移除" },
   
+  // 排班系統（添加多種變體）
   "志工註冊": { text: "已為您註冊排班系統志工權限", url: "https://go.guimashan.org.tw" },
+  "志工": { text: "已為您註冊排班系統志工權限", url: "https://go.guimashan.org.tw" },
   "工作註冊": { text: "已為您註冊排班系統志工權限", url: "https://go.guimashan.org.tw" },
+  "工作": { text: "已為您註冊排班系統志工權限", url: "https://go.guimashan.org.tw" },
   "排班管理註冊": { text: "已為您註冊排班系統管理權限", url: "https://go.guimashan.org.tw" },
+  "排班管理": { text: "已為您註冊排班系統管理權限", url: "https://go.guimashan.org.tw" },
   "排班系統註冊": { text: "已為您註冊排班系統管理員權限", url: "https://go.guimashan.org.tw" },
+  "排班系統": { text: "已為您註冊排班系統管理員權限", url: "https://go.guimashan.org.tw" },
   "排班退場": { text: "已將您從排班系統移除" },
   
+  // 神務服務（添加多種變體）
   "神服服務": { text: "已為您註冊神務服務使用權限", url: "https://go.guimashan.org.tw" },
+  "神服": { text: "已為您註冊神務服務使用權限", url: "https://go.guimashan.org.tw" },
   "神服管理註冊": { text: "已為您註冊神務服務管理權限", url: "https://go.guimashan.org.tw" },
+  "神服管理": { text: "已為您註冊神務服務管理權限", url: "https://go.guimashan.org.tw" },
   "神服系統註冊": { text: "已為您註冊神務服務管理員權限", url: "https://go.guimashan.org.tw" },
+  "神服系統": { text: "已為您註冊神務服務管理員權限", url: "https://go.guimashan.org.tw" },
   "神服退場": { text: "已將您從神務服務系統移除" },
 };
 

@@ -1,15 +1,12 @@
 // server/index.ts
 import express, { Request, Response } from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import mountRoutes from "./routes";
+import { mountRoutes } from "./routes";
 
 const app = express();
 
 // ===== 基本中介層設定 =====
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ===== 健康檢查（主應用層）=====
 app.get("/", (_req: Request, res: Response) => {

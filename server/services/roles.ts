@@ -30,23 +30,33 @@ export async function upsertRoleByKeyword(opts: {
 
   // 關鍵字 → 角色對照（可持續擴充）
   const map: Record<string, { path: keyof Roles; level: RoleLevel | "resigned" }> = {
-    // 奉香
+    // 奉香（添加簡短變體）
     "奉香註冊":        { path: "checkin", level: "user" },
+    "奉香":            { path: "checkin", level: "user" },
     "奉香管理註冊":    { path: "checkin", level: "poweruser" },
+    "奉香管理":        { path: "checkin", level: "poweruser" },
     "奉香系統註冊":    { path: "checkin", level: "admin" },
+    "奉香系統":        { path: "checkin", level: "admin" },
     "奉香退場":        { path: "checkin", level: "resigned" },
 
-    // 排班
+    // 排班（添加簡短變體）
     "志工註冊":        { path: "schedule", level: "user" },
+    "志工":            { path: "schedule", level: "user" },
     "工作註冊":        { path: "schedule", level: "user" },
+    "工作":            { path: "schedule", level: "user" },
     "排班管理註冊":    { path: "schedule", level: "poweruser" },
+    "排班管理":        { path: "schedule", level: "poweruser" },
     "排班系統註冊":    { path: "schedule", level: "admin" },
+    "排班系統":        { path: "schedule", level: "admin" },
     "排班退場":        { path: "schedule", level: "resigned" },
 
-    // 神服
+    // 神服（添加簡短變體）
     "神服服務":        { path: "service", level: "user" },
+    "神服":            { path: "service", level: "user" },
     "神服管理註冊":    { path: "service", level: "poweruser" },
+    "神服管理":        { path: "service", level: "poweruser" },
     "神服系統註冊":    { path: "service", level: "admin" },
+    "神服系統":        { path: "service", level: "admin" },
     "神服退場":        { path: "service", level: "resigned" },
   };
 
