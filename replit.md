@@ -10,41 +10,41 @@
 4. **志工排班系統** - 班表管理與換班功能
 
 ## 技術棧
-### 前端
+### 前端 & 後端
+- **Next.js 14.2.33** (App Router)
 - React 18
 - TypeScript
-- React Router DOM (路由) - 從 Wouter 遷移
-- TanStack Query (資料獲取)
-- Tailwind CSS + DaisyUI (UI 組件庫)
 - LINE LIFF SDK 2.22.0
-
-### 後端
-- Express.js + Vite (開發伺服器整合)
-- Firebase Admin SDK (認證)
-- Firebase Firestore (資料庫)
-- LINE LIFF 認證整合
+- Firebase (客戶端)
+- Firebase Admin SDK (伺服器端認證)
 
 ## 專案結構
 ```
-client/
-  src/
-    pages/          # 頁面組件
-      home.tsx      # 首頁
-      login.tsx     # LINE 登入頁
-      checkin.tsx   # 簽到系統
-      service.tsx   # 服務申請
-      schedule.tsx  # 排班管理
-    components/
-      ui/           # UI 組件
-server/
-  routes.ts         # API 路由
-  storage.ts        # 資料存取層
-shared/
-  schema.ts         # 資料模型定義
+src/
+  app/
+    page.tsx           # 首頁
+    login/page.tsx     # LINE 登入頁
+    checkin/page.tsx   # 簽到系統
+    service/page.tsx   # 神務服務
+    schedule/page.tsx  # 志工排班系統
+    ok/page.tsx        # 成功頁面
+    layout.tsx         # 根布局
+    api/
+      auth/line/route.ts      # LINE 認證 API
+      checkin/create/route.ts # 簽到 API
+      webhook/route.ts        # LINE Webhook
+      ping/route.ts           # 健康檢查
+  lib/
+    firebase.ts        # Firebase 客戶端配置
+    admin.ts           # Firebase Admin 配置
+    verifyLine.ts      # LINE 驗證工具
+public/              # 靜態資源
+next.config.mjs      # Next.js 配置
+tsconfig.json        # TypeScript 配置
 ```
 
 ## 環境變數
-### Firebase (Client)
+### Firebase (Client) - 需加 NEXT_PUBLIC_ 前綴
 - NEXT_PUBLIC_FIREBASE_API_KEY
 - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 - NEXT_PUBLIC_FIREBASE_PROJECT_ID
@@ -55,9 +55,14 @@ shared/
 - FIREBASE_SERVICE_ACCOUNT_JSON
 
 ### LINE LIFF
-- LINE_BOT_CHANNEL_ID
-- LINE_BOT_CHANNEL_SECRET
+- LINE_CHANNEL_ID
+- LINE_CHANNEL_SECRET
 - NEXT_PUBLIC_LINE_LIFF_ID
+
+### Vercel 部署
+- VERCEL_ADMIN_API_KEY
+- VERCEL_PROJECT_ID
+- VERCEL_ORG_ID
 
 ## 資料模型
 ### 使用者 (User)
@@ -89,60 +94,73 @@ shared/
 
 ## Vercel 部署管理
 
-本專案支援自動部署到 Vercel，提供以下功能：
+### Vercel 專案資訊
+- **專案名稱**：`platform`（不是 `Replit_guimashan_go`）
+- **框架**：Next.js
+- **部署來源**：GitHub `guimashan/Platform` 倉庫
+- **正式域名**：`go.guimashan.org.tw`
+- **Commit SHA**：`ca3c28b6ab36e01a960948b382adcc19740426a0`（Next.js 版本）
 
-### API 端點
-- `GET /api/deploy/domains` - 查詢 Vercel 正式域名
-- `POST /api/deploy/sync-env` - 同步環境變數到 Vercel
-- `POST /api/deploy/trigger` - 觸發 Vercel 部署
-- `GET /api/deploy/status` - 查詢部署狀態
-- `POST /api/deploy/full` - 一鍵完整部署（同步環境變數 + 觸發部署）
-
-### 必要設定
-1. **Vercel Secrets**：
-   - `VERCEL_ADMIN_API_KEY` - Vercel API Token
-   - `VERCEL_PROJECT_ID` - 專案 ID
-   - `VERCEL_ORG_ID` - 組織/團隊 ID
-   - `VERCEL_DEPLOY_HOOK_URL` - Deploy Hook URL（需在 Vercel Dashboard 建立）
-
-2. **正式 Webhook URL**：
-   - 開發環境：`https://${REPLIT_DEV_DOMAIN}/api/webhook`
-   - 正式環境：`https://您的vercel域名/api/webhook`（如 `https://go.guimashan.org.tw/api/webhook`）
-
-3. **SuperAdmin 機制**：
-   - 第一個註冊的使用者自動成為 SuperAdmin
-   - 擁有所有系統的 admin 權限（checkin、schedule、service）
-   - `isSuperAdmin: true` 標記於 Firestore user 文件
+### SuperAdmin 機制
+- 第一個註冊的使用者自動成為 SuperAdmin
+- 擁有所有系統的 admin 權限（checkin、schedule、service）
+- `isSuperAdmin: true` 標記於 Firestore user 文件
 
 詳細部署指南請參閱 `VERCEL_DEPLOYMENT_GUIDE.md`
 
 ## 最近更改
+- **2025-10-22 16:40**: ✅ 完全恢復到 Next.js 架構
+  - 從 Vercel 部署（commit ca3c28b6）下載原始 Next.js 版本
+  - 移除 Express + Vite 架構（client/、server/、shared/ 目錄）
+  - 恢復 Next.js App Router 結構（src/app/ 目錄）
+  - 安裝 Next.js 14.2.33 及相關依賴
+  - **已知問題**：端口配置衝突（見下方）
 - 2025-10-22: 新增 Vercel 自動部署管理系統
   - 實作環境變數同步到 Vercel 功能
   - 整合 Deploy Hook 觸發機制
   - 新增 SuperAdmin 自動授權（第一個用戶）
   - 建立完整的部署指南文件
-- 2025-10-21: 修復模組導入和型別錯誤
-  - 將 server/routes.ts 中的 `@shared/schema` 改為相對路徑 `../shared/schema`，避免 vite.config.ts 階段的路徑解析問題
-  - 修復 LINE 認證 API 中的 `pictureUrl` 處理，當 LINE 未提供頭像時正確省略該欄位
-  - 清除所有 LSP 錯誤
+- 2025-10-21: 修復模組導入和型別錯誤（Express + Vite 時期）
 - 2025-10-20: 從 GitHub 導入專案結構，設置 Firebase 和 LINE LIFF 整合
 
 ## 已知問題
-### 端口配置問題
-- **問題描述**：`.replit` 檔案中 `waitForPort = 5000`，但應用運行在端口 5175（Vite 預設端口）
-- **影響**：工作流顯示為 FAILED，但應用本身啟動成功（Firebase Admin SDK 初始化成功，Vite ready）
-- **解決方案**：需要手動修改 `.replit` 檔案：
+
+### ⚠️ 端口配置衝突（需手動修正）
+- **問題描述**：
+  - Next.js 運行在 port **3000**（Next.js 標準端口）
+  - `.replit` 檔案配置等待 port **5175**（舊 Vite 配置）
+  - 導致 workflow 顯示 FAILED（錯誤：`didn't open port 5175`）
+  
+- **影響**：
+  - Next.js 應用正常啟動並運行（✓ Ready in 1573ms）
+  - 但外部訪問無法連接（端口映射不正確）
+  - Replit workflow 狀態顯示 FAILED
+  
+- **解決方案**：需要手動修改 `.replit` 檔案
+  
+  找到以下兩個部分並修改：
+  
   ```toml
+  # 1. 修改 workflow 等待的端口
   [[workflows.workflow.tasks]]
   task = "shell.exec"
   args = "npm run dev"
-  waitForPort = 5175  # 改為 5175
+  waitForPort = 3000  # 從 5175 改為 3000
 
+  # 2. 修改端口映射
   [[ports]]
-  localPort = 5175
-  externalPort = 80   # 改為 80 以對應外部端口
+  localPort = 3000    # 從 5175 改為 3000
+  externalPort = 80
+  exposeLocalhost = true
   ```
+
+- **為什麼無法自動修正**：
+  - `.replit` 和 `package.json` 受 Replit 系統保護
+  - 防止意外破壞環境配置
+  - 需要用戶手動修改確認
+
+### 備份位置
+Express + Vite 版本備份在：`/tmp/express_backup/`（如需回退）
 
 ## 用戶偏好
 - 使用繁體中文 (zh-Hant)
