@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/apiRequest";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { CalendarPlus, ArrowLeft } from "lucide-react";
 import type { Schedule, InsertSchedule } from "@/shared/schema";
 
 export default function SchedulePage() {
-  const navigate = useRouter();
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<InsertSchedule>({
     userId: "",
