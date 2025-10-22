@@ -1,72 +1,62 @@
-# 龜馬山 goLine 平台｜驗收報告（R社 → G社 同步）
+# 龜馬山 goLine 平台｜開發日誌
 
-- 報告日期：2025-10-21
-- 驗收範圍：M1（UI / 路由 / 樣式）＋ M2（Admin 檢測 / API）
-- R社 Replit 專案：https://replit.com/@guimashan/Gui-Ma-Shan-Zheng-He-Fu-Wu-Ping-Tai
-- G社 GitHub 專案：https://github.com/guimashan/Platform
-- 驗收結論：⚙️ 驗收中（等待 G社 對比同步）
+> 一段人與神、機器與香火共修的開發故事。
 
 ---
 
-## A. 重要檔案差異摘要（R社 vs G社）
-> 來源：`git diff --name-status origin/main..HEAD`
-
-| 變更 | 檔案 |
-|---|---|
-| A | client/src/components/ui/Navbar.tsx |
-| A | client/src/components/ui/Footer.tsx |
-| A | client/src/components/ui/ThemeToggle.tsx |
-| A | client/src/components/ui/StateCards.tsx |
-| M | client/src/App.tsx |
-| A | client/src/pages/home.tsx |
-| A | client/src/pages/login.tsx |
-| A | client/src/pages/checkin.tsx |
-| A | client/src/pages/service.tsx |
-| A | client/src/pages/schedule.tsx |
-| M | tailwind.config.ts |
-| M | postcss.config.js |
-| M | client/src/index.css |
-| M | server/firebaseAdmin.ts |
-| M | server/routes.ts |
-| M | server/index.ts |
-
-> A = 新增，M = 修改，D = 刪除
+## 🌕 第一階段：基礎工程
+- M1: 初始化專案與前端 UI  
+- M2: Firebase Admin 與伺服端整合  
+- M3: LINE 登入導向系統  
+- M4: 平台整合與部署
 
 ---
 
-## B. M1 驗收（UI / 路由 / 樣式）
-- [x] 已安裝 `tailwindcss`、`postcss`、`autoprefixer`、`daisyui`
-- [x] `tailwind.config.ts`：content 指向 `client/**/*.{html,js,ts,jsx,tsx}`
-- [x] `tailwind.config.ts`：plugins 已加入 daisyui；themes=["light","dark"]
-- [x] `client/src/index.css`：有 @tailwind base/components/utilities
-- [x] 共用元件存在：
-  - [x] Navbar
-  - [x] Footer
-  - [x] ThemeToggle
-  - [x] StateCards
-- [x] 頁面存在：Home / Login / Checkin / Service / Schedule
-- [x] App.tsx 使用 react-router-dom 串接元件
+## 📘 第二階段：奉香簽到系統
+> 敬香一柱，心誠則靈。
 
 ---
 
-## C. M2 驗收（Admin 檢測 / API）
-- [x] `.env` 含 `FIREBASE_SERVICE_ACCOUNT_JSON`（未上傳 G社）
-- [x] `server/firebaseAdmin.ts` 初始化成功
-- [x] `server/routes.ts`：GET `/api/ping-admin` 回傳 { ok:true, ... }
-- [x] `server/index.ts` 掛載 `mountRoutes(app)`
-- [ ] Replit Dev URL 驗證中
+## 📗 第三階段：神服服務
+> 每一件神服，皆為護法之衣。
 
 ---
 
-## D. 待辦與風險
-- [ ] 確認 `.gitignore` 屏蔽 `.env`、憑證檔案
-- [ ] 驗證 Replit → G社 push 流程
-- [ ] 第二階段（使用者登入、簽到模組）待規劃
+## 📙 第四階段：排班系統
+> 為神明服務的時間，也是一種修行。
 
 ---
 
-## E. 版本資訊
-- Node.js：v18.x（Replit）
-- Framework：Vite + React + TypeScript
-- Firebase Admin：v12+
-- 部署平台：Replit + GitHub + Vercel
+## 📒 每日開發日誌
+（待自動生成 🌅 與 🌙 章節）
+
+
+## 🌅 第天（新章啟動）
+
+### 🎙 敘事開場
+花社：「又是新的一天，神明請加持我們的部署。」
+
+### 📜 今日任務
+- [ ] 尚未開始
+
+### 📈 今日進度
+| 模組 | 進度 | 狀態 |
+|------|------|------|
+| 新章節 | 0% | 準備中 |
+
+> Ｃ社（軍師）：「今日氣象晴朗，適合開發。」
+> Ｒ社（工程師）：「又是加班的預感……」
+
+
+
+### 🌙 日暮收章（2025-10-22 02:26）
+今日任務完成狀況：
+- 🔧 程式穩定運行
+- ☁️ Firebase Admin 狀態良好
+- 💡 明日準備：新功能設計會議
+
+> Ｃ社：「部署成功。」
+> Ｒ社：「又加班了……」
+> 花社：「但至少香火不滅。」
+> Ｇ社靜靜收納所有歷史紀錄。
+
