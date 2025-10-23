@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== M7-Final Clean：移除舊 API → 確保環境 → 觸發部署 → 健康檢查 =="
+
+# ====== 0) 參數 ======
+PROJECT="${PROJECT:-platform}"
+BRANCH="${BRANCH:-main}"
+DOMAIN="${DOMAIN:-go.guimashan.org.tw}"
+
+# Vercel 必要參數（請先在 Replit Secrets 設好）
+: "${VERCEL_PROJECT_ID:?缺少 VERCEL_PROJECT_ID}"
+: "${VERCEL_ADMIN_API_KEY:?缺少 VERCEL_ADMIN_API_KEY}"
+# 可選：若沒有 Deploy Hook，Vercel 會自動從 GitHub 部署
+: "${VERCEL_DEPLOY_HOOK_URL:=}"
+
+# ====== 1) 移除舊 API 端點（因為已砍掉重練，統一走 LIFF 主線）======
+echo "— 移除 legacy API：/api/login、/api/checkin、/api/checkin/manage"
+rm -rf src/app/api/login || true
+rm -rf src/app/api/checkin || true
+rm -rf src/app/api/checkin/manage || true
+
+git add -A
+if ! git diff --cached --quiet; then
+  git commit -m "chore(m7): remove legacy OAuth/checkin endpoints; migrate fully to LIFF mainline"
+  git push origin "$BRANCH"
+  echo "✔ 已推送到 GitHub：$BRANCH"
+else
+  echo "ℹ️ 無檔案變更可提交（可能之前已清過）"
+fi
+
+# ====== 2) 確保 Vercel 有 NEXT_PUBLIC_BASE_URL ======
+echo "— 檢查/建立 Vercel 環境變數：NEXT_PUBLIC_BASE_URL=https://${DOMAIN}"
+CREATE_ENV_PAYLOAD=$(cat <<JSON
+{
+  "key": "NEXT_PUBLIC_BASE_URL",
+  "value": "https://${DOMAIN}",
+  "target": ["production", "preview", "development"],
+  "type": "plain"
+}
+JSON
+)
+
+# 嘗試建立（若已存在會 409，不影響）
+set +e
+RESP=$(curl -sS -X POST "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env" \
+  -H "Authorization: Bearer ${VERCEL_ADMIN_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d "$CREATE_ENV_PAYLOAD")
+CODE=$?
+set -e
+if [ $CODE -eq 0 ]; then
+  echo "✔ Vercel 變數提交成功（若已存在則忽略）"
+else
+  echo "⚠️ Vercel 變數提交出現非致命錯誤（可能已存在），繼續流程"
+fi
+
+# ====== 3) 觸發部署（若有 Hook）======
+if [ -n "${VERCEL_DEPLOY_HOOK_URL}" ]; then
+  echo "— 觸發 Vercel Deploy Hook"
+  curl -fsSL -X POST "$VERCEL_DEPLOY_HOOK_URL" >/dev/null && echo "✔ 已觸發部署"
+else
+  echo "ℹ️ 未提供 VERCEL_DEPLOY_HOOK_URL，將等待 Vercel 從 GitHub 自動部署"
+fi
+
+# ====== 4) 健康檢查 ======
+echo "— 等候 60 秒讓部署完成..."
+sleep 60
+
+fail=0
+echo
+echo "== 健康檢查 =="
+
+echo "[1/4] GET https://${DOMAIN}/login 應 200/OK（頁面存在）"
+code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/login")
+echo "  ↳ 回應碼：$code"
+[[ "$code" == "200" ]] || { echo "  ✗ 頁面未就緒"; fail=$((fail+1)); }
+
+echo "[2/4] POST https://${DOMAIN}/api/checkin/create 應由主線處理（200/401/403 皆可接受；不應該 404/500）"
+code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://${DOMAIN}/api/checkin/create" \
+  -H "Content-Type: application/json" -d '{"probe":"m7-final"}')
+echo "  ↳ 回應碼：$code"
+case "$code" in
+  200|401|403) echo "  ✓ 主線端點存在";;
+  *) echo "  ✗ 不預期的狀態碼（應非 404/500）"; fail=$((fail+1));;
+esac
+
+echo "[3/4] GET https://${DOMAIN}/api/checkin 應 404（已清理舊端點）"
+code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/api/checkin")
+echo "  ↳ 回應碼：$code"
+[[ "$code" == "404" ]] && echo "  ✓ 舊端點已清" || { echo "  ✗ 舊端點尚存在（預期 404）"; fail=$((fail+1)); }
+
+echo "[4/4] GET https://${DOMAIN}/api/login 應 404（已清理舊端點）"
+code=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/api/login")
+echo "  ↳ 回應碼：$code"
+[[ "$code" == "404" ]] && echo "  ✓ 舊端點已清" || { echo "  ✗ 舊端點尚存在（預期 404）"; fail=$((fail+1)); }
+
+echo
+if [ $fail -eq 0 ]; then
+  echo "🎉 M7-Final Clean 驗收通過：新主線正常、舊端點已移除、環境變數就位。"
+  exit 0
+else
+  echo "⚠️ M7-Final Clean 部分檢查未通過，請依上方 ✗ 提示修正後再跑一次。"
+  exit 2
+fi
