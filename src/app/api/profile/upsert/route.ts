@@ -38,36 +38,56 @@ export async function POST(req: NextRequest) {
     const { displayName, pictureUrl, lineUserId } = body;
 
     const now = Date.now();
-    const usersRef = adminDb.collection("users");
-    const userRef = usersRef.doc(uid);
+    const userRef = adminDb.collection("users").doc(uid);
+    
+    // 檢查用戶是否已存在
     const userSnap = await userRef.get();
 
-    // 3. 檢查是否為第一個用戶（SuperAdmin）
-    const isFirstUser = !userSnap.exists && (await usersRef.limit(1).get()).empty;
-
     if (!userSnap.exists) {
-      // 新用戶
-      const newUser: UserDoc = {
-        displayName: displayName || decoded.name || "未命名",
-        pictureUrl: pictureUrl || decoded.picture || "",
-        lineUserId: lineUserId || decoded.sub || "",
-        roles: {
-          user: true,
-          poweruser: false,
-          admin: false,
-          superadmin: isFirstUser,
-        },
-        isSuperAdmin: isFirstUser,
-        createdAt: now,
-        lastLoginAt: now,
-      };
+      // 3. 新用戶 - 使用 Transaction 確保 SuperAdmin 唯一性
+      const result = await adminDb.runTransaction(async (transaction) => {
+        // 使用 sentinel document 標記 SuperAdmin
+        const superadminMetaRef = adminDb.collection("_meta").doc("superadmin");
+        const metaSnap = await transaction.get(superadminMetaRef);
+        
+        // 檢查是否已有 SuperAdmin
+        const isFirstUser = !metaSnap.exists;
+        
+        const newUser: UserDoc = {
+          displayName: displayName || decoded.name || "未命名",
+          pictureUrl: pictureUrl || decoded.picture || "",
+          lineUserId: lineUserId || decoded.sub || "",
+          roles: {
+            user: true,
+            poweruser: false,
+            admin: false,
+            superadmin: isFirstUser,
+          },
+          isSuperAdmin: isFirstUser,
+          createdAt: now,
+          lastLoginAt: now,
+        };
 
-      await userRef.set(newUser);
+        // 原子性操作：同時設置用戶和 SuperAdmin 標記
+        transaction.set(userRef, newUser);
+        
+        if (isFirstUser) {
+          // 標記已有 SuperAdmin，防止其他用戶成為 SuperAdmin
+          transaction.set(superadminMetaRef, {
+            uid,
+            assignedAt: now,
+            displayName: newUser.displayName,
+          });
+          console.log(`[/api/profile/upsert] First user registered as SuperAdmin: ${uid}`);
+        }
+
+        return { newUser, isFirstUser };
+      });
 
       return NextResponse.json({
         ok: true,
-        user: { uid, ...newUser },
-        isFirstUser,
+        user: { uid, ...result.newUser },
+        isFirstUser: result.isFirstUser,
       });
     } else {
       // 既有用戶，更新登入時間和資料
