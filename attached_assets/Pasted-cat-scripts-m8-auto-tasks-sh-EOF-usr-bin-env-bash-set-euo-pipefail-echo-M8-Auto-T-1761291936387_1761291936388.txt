@@ -1,0 +1,145 @@
+cat > scripts/m8_auto_tasks.sh << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== 🐢 M8 Auto Tasks: go.guimashan.org.tw 全面自檢 =="
+
+########################################
+# 0. 基本設定
+########################################
+
+DOMAIN="https://go.guimashan.org.tw"
+
+# 這三個一定要已經在 Replit Secrets 裡綁好
+FIREBASE_JSON="${FIREBASE_SERVICE_ACCOUNT_JSON:-}"
+DEPLOY_HOOK="${VERCEL_DEPLOY_HOOK_URL:-}"
+BASE_URL="${NEXT_PUBLIC_BASE_URL:-}"
+
+########################################
+# 1. 檢查環境變數
+########################################
+
+echo ""
+echo "== 1. 環境變數檢查 =="
+
+missing=0
+
+if [ -z "$FIREBASE_JSON" ]; then
+  echo "❌ FIREBASE_SERVICE_ACCOUNT_JSON 沒有設到環境變數（Replit Secrets）"
+  missing=1
+else
+  # 我們只印出 project_id，不印私鑰
+  project_id=$(echo "$FIREBASE_JSON" | sed 's/"/\n/g' | grep '^project_id:' | sed 's/project_id://')
+  if [ -z "$project_id" ]; then
+    # fallback 用 jq-like 的土法 (因為不能用jq)
+    project_id=$(echo "$FIREBASE_JSON" | sed 's/[{},]/\n/g' | grep '"project_id"' | sed 's/.*"project_id":[[:space:]]*"\([^"]*\)".*/\1/')
+  fi
+
+  echo "✅ FIREBASE_SERVICE_ACCOUNT_JSON 已設置"
+  echo "   → project_id = ${project_id:-"(讀不到 project_id)"}"
+
+  # 期望是 checkin-76c77
+  if echo "$FIREBASE_JSON" | grep -q "checkin-76c77"; then
+    echo "   ✔ 使用 checkin-76c77 ✅"
+  else
+    echo "   ⚠ WARNING: 看起來不是 checkin-76c77，請確認已切到正確 Firestore 專案"
+  fi
+fi
+
+if [ -z "$BASE_URL" ]; then
+  echo "❌ NEXT_PUBLIC_BASE_URL 沒有設"
+  missing=1
+else
+  echo "✅ NEXT_PUBLIC_BASE_URL = $BASE_URL"
+  if [ "$BASE_URL" != "$DOMAIN" ]; then
+    echo "   ⚠ WARNING: BASE_URL 不是 $DOMAIN，請確認是否故意的"
+  fi
+fi
+
+if [ -z "$DEPLOY_HOOK" ]; then
+  echo "❌ VERCEL_DEPLOY_HOOK_URL 沒有設（之後無法自動觸發正式站重建）"
+  missing=1
+else
+  echo "✅ VERCEL_DEPLOY_HOOK_URL 已就緒（不顯示內容）"
+fi
+
+if [ "$missing" -eq 1 ]; then
+  echo ""
+  echo "💥 有缺環境變數，請先補好 Secrets 再跑。腳本結束。"
+  exit 1
+fi
+
+########################################
+# 2. 健康檢查 API
+########################################
+
+echo ""
+echo "== 2. 健康檢查 API =="
+
+echo "--> 測試 /api/ping-bot"
+ping_bot_resp=$(curl -s "$DOMAIN/api/ping-bot" || true)
+echo "    回傳: $ping_bot_resp"
+if echo "$ping_bot_resp" | grep -q '"ok":true'; then
+  echo "    ✅ ping-bot OK"
+else
+  echo "    ❌ ping-bot 似乎不正常，請檢查 LINE bot config"
+fi
+
+echo "--> 測試 /api/ping-admin"
+ping_admin_resp=$(curl -s "$DOMAIN/api/ping-admin" || true)
+echo "    回傳: $ping_admin_resp"
+if echo "$ping_admin_resp" | grep -q '"ok":true'; then
+  echo "    ✅ ping-admin OK"
+else
+  echo "    ❌ ping-admin 似乎不正常，請檢查 Firebase Admin 金鑰 / 專案"
+fi
+
+########################################
+# 3. Git 狀態同步回 GitHub
+########################################
+
+echo ""
+echo "== 3. Git 狀態同步到 GitHub =="
+
+# 我們不在這裡自動 push --force，避免把錯的東西洗上去
+# 如果工作樹是乾淨的，就跳過 commit；如果有改動，就 commit+push
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "📦 偵測到本地有尚未提交的變更 → 進行 commit & push"
+
+  git add .
+  git commit -m "M8 sync: ensure checkin-76c77 Firebase config, healthcheck verified"
+  # push 會需要已經有憑證 (Replit 目前有設定 PAT)
+  git push origin main || echo "⚠ push 失敗，請手動 push"
+else
+  echo "✅ 沒有本地變更，略過 commit/push"
+fi
+
+########################################
+# 4. 觸發 Vercel 正式站重建
+########################################
+
+echo ""
+echo "== 4. 觸發 Vercel 正式站重新部署 =="
+
+curl -fsSL -X POST "$DEPLOY_HOOK" >/dev/null 2>&1 \
+  && echo "🚀 已觸發 Vercel Deploy Hook，正式站正在重建中" \
+  || echo "⚠ 無法觸發 Deploy Hook，請手動在 Vercel Dashboard -> Deployments 點 'Redeploy'"
+
+########################################
+# 5. 總結
+########################################
+
+echo ""
+echo "== 5. 總結狀態 =="
+echo "✔ 環境變數檢查完成 (包含 checkin-76c77)"
+echo "✔ /api/ping-bot / /api/ping-admin 回應已列出"
+echo "✔ GitHub 同步嘗試完成"
+echo "✔ 已嘗試觸發 Vercel 正式部署"
+echo ""
+echo "🎯 完成 M8 Auto Tasks"
+EOF
+
+chmod +x scripts/m8_auto_tasks.sh
+echo "✅ 腳本已寫入 scripts/m8_auto_tasks.sh"
+echo "👉 之後只要執行：bash scripts/m8_auto_tasks.sh"

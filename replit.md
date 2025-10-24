@@ -3,6 +3,37 @@
 ## 專案概述
 這是一個整合 LINE LIFF 和 Firebase 的服務平台，專為龜馬山社群打造，提供登入、簽到、服務申請和排班管理等功能。
 
+## 系統架構圖
+```
+使用者（工作人員/志工）
+   ↓ 📱 掃描巡邏點 QR Code
+   ↓
+https://go.guimashan.org.tw/checkin
+   ↓ 🔐 LINE 登入 (LIFF)
+   ↓
+平台後端 (Next.js @ Vercel)
+   ├─ /api/checkin/create    ← 打卡上傳
+   ├─ /api/ping-bot          ← LINE Bot 健康檢查
+   ├─ /api/ping-admin        ← Firebase Admin 健康檢查
+   └─ /api/webhook           ← LINE 關鍵字自動回覆
+   ↓
+📊 Firestore 專案：checkin-76c77
+   ├─ checkins/    打卡紀錄
+   ├─ points/      巡邏點（玉旨牌/萬應公/辦公室）
+   └─ users/       使用者資料（含 SuperAdmin 標記）
+
+💻 管理後台
+   /checkin/manage
+   └─ 用 Email + Password（Firebase Auth Admin）
+      不需要 LINE 登入
+```
+
+### ⚠️ 重要筆記
+- **後端連接專案**：`checkin-76c77`（不是 `platform-bc783`）
+- **未來報表/管理**：都要從 `checkin-76c77` 讀取
+- **管理後台**：電腦用，Email/Password 登入
+- **Next.js 專案代號**：`platform`（≠ Firestore 專案名稱）
+
 ## 核心功能
 1. **LINE 登入** - 使用 LINE LIFF SDK 進行使用者認證
 2. **奉香簽到系統** - 志工與信眾的簽到管理
@@ -52,17 +83,22 @@ tsconfig.json        # TypeScript 配置
 - NEXT_PUBLIC_FIREBASE_APP_ID
 
 ### Firebase (Server)
-- FIREBASE_SERVICE_ACCOUNT_JSON
+- FIREBASE_SERVICE_ACCOUNT_JSON（⚠️ 必須使用 checkin-76c77 專案）
 
 ### LINE LIFF
 - LINE_CHANNEL_ID
 - LINE_CHANNEL_SECRET
+- LINE_CHANNEL_ACCESS_TOKEN（用於 Webhook 關鍵字回覆）
 - NEXT_PUBLIC_LINE_LIFF_ID
 
 ### Vercel 部署
 - VERCEL_ADMIN_API_KEY
 - VERCEL_PROJECT_ID
 - VERCEL_ORG_ID
+- VERCEL_DEPLOY_HOOK_URL（觸發自動重新部署）
+
+### 其他
+- NEXT_PUBLIC_BASE_URL（應設為 https://go.guimashan.org.tw）
 
 ## 資料模型
 ### 使用者 (User)
@@ -108,7 +144,24 @@ tsconfig.json        # TypeScript 配置
 
 詳細部署指南請參閱 `VERCEL_DEPLOYMENT_GUIDE.md`
 
+## 自動化腳本
+
+### M8 Auto Tasks（全面自檢）
+執行 `bash scripts/m8_auto_tasks.sh` 進行：
+1. 環境變數檢查（包含 checkin-76c77 專案驗證）
+2. API 健康檢查（/api/ping-bot, /api/ping-admin）
+3. Git 同步到 GitHub
+4. 觸發 Vercel 自動部署
+
 ## 最近更改
+- **2025-10-24 15:48**: 🔧 修正 Firebase 專案配置並新增自動化
+  - 修正 /api/ping-admin 正確返回實際連接的專案 ID（checkin-76c77）
+  - 新增 M8 Auto Tasks 自動化腳本（scripts/m8_auto_tasks.sh）
+  - 新增型別定義系統（src/types/index.ts）
+  - 新增 /api/profile/upsert - 用戶資料落地 API
+  - 增強 /api/webhook - 支援 6 個關鍵字自動回覆
+  - 修復 SuperAdmin 競態條件（使用 Firestore Transaction）
+  - 確保所有 API 使用正確的 checkin-76c77 專案
 - **2025-10-22 17:30**: 🧹 清理專案目錄結構
   - 刪除舊版驗收報告（V1.0、V1.1）
   - 移除 Vite 殘留檔案（.vite/ 目錄）
