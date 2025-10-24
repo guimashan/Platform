@@ -61,10 +61,23 @@ src/
     ok/page.tsx        # 成功頁面
     layout.tsx         # 根布局
     api/
-      auth/line/route.ts      # LINE 認證 API
-      checkin/create/route.ts # 簽到 API
-      webhook/route.ts        # LINE Webhook
-      ping/route.ts           # 健康檢查
+      auth/line/route.ts        # LINE 認證 API
+      checkin/
+        create/route.ts         # 簽到 API
+        points/route.ts         # 查詢巡邏點 API
+        history/route.ts        # 查詢簽到歷史 API
+      webhook/route.ts          # LINE Webhook
+      ping-bot/route.ts         # LINE Bot 健康檢查
+      ping-admin/route.ts       # Firebase Admin 健康檢查
+  types/
+    index.ts                    # TypeScript 型別定義
+  lib/
+    firebase.ts                 # Firebase 客戶端配置
+    admin.ts                    # Firebase Admin 配置
+    liff.ts                     # LINE LIFF 工具函數
+scripts/
+  init-patrol-points.ts         # 初始化巡邏點腳本
+  m8_auto_tasks.sh              # M8 自動化任務腳本
   lib/
     firebase.ts        # Firebase 客戶端配置
     admin.ts           # Firebase Admin 配置
@@ -101,18 +114,28 @@ tsconfig.json        # TypeScript 配置
 - NEXT_PUBLIC_BASE_URL（應設為 https://go.guimashan.org.tw）
 
 ## 資料模型
-### 使用者 (User)
-- id: LINE User ID
+### 使用者 (UserDoc)
 - displayName: 顯示名稱
-- pictureUrl: 頭像
-- createdAt: 建立時間
+- pictureUrl?: 頭像
+- lineUserId?: LINE User ID
+- roles: 角色權限 (Record<string, boolean>)
+- isSuperAdmin?: 是否為超級管理員
+- createdAt: 建立時間 (timestamp)
+- lastLoginAt: 最後登入時間 (timestamp)
 
-### 簽到記錄 (CheckIn)
+### 巡邏點 (Patrol)
+- id: 巡邏點 ID (例如：point-yuji)
+- name: 巡邏點名稱 (例如：玉旨牌)
+- qr: QR Code 內容 (例如：PATROL_YUJI_2025)
+- active: 是否啟用 (boolean)
+- createdAt: 建立時間 (timestamp)
+
+### 簽到記錄 (Checkin)
 - id: 記錄 ID
-- userId: 使用者 ID
-- timestamp: 簽到時間
-- location: 簽到地點
-- type: 簽到類型
+- uid: 使用者 Firebase UID
+- patrolId: 巡邏點 ID
+- ts: 簽到時間戳 (timestamp)
+- meta?: 額外資訊 { ua?: 用戶代理, ip?: IP 地址 }
 
 ### 服務申請 (Service)
 - id: 申請 ID
@@ -154,6 +177,28 @@ tsconfig.json        # TypeScript 配置
 4. 觸發 Vercel 自動部署
 
 ## 最近更改
+- **2025-10-24 11:45**: ✅ 完成奉香簽到系統核心功能
+  - ✅ 建立巡邏點系統（玉旨牌/萬應公/辦公室）並初始化到 Firestore
+  - ✅ 實作 /api/checkin/create 核心簽到邏輯（寫入 Firestore checkin-76c77）
+    - 驗證 Firebase ID Token
+    - 驗證 QR Code 對應有效巡邏點
+    - 檢查重複簽到（5分鐘內）
+    - 記錄用戶資訊和 metadata (UA, IP)
+  - ✅ 實作 /api/checkin/points API（查詢啟用的巡邏點）
+  - ✅ 實作 /api/checkin/history API（查詢使用者簽到歷史）
+  - ✅ 完全重構前端 /checkin 頁面
+    - 整合 LINE LIFF 登入流程
+    - LINE LIFF Token → Firebase Custom Token → Firebase ID Token
+    - QR Code 手動輸入（可擴展為掃描）
+    - 即時簽到狀態顯示
+    - 簽到歷史列表（最近 20 筆）
+    - 移動優先設計（台灣宗教文化風格）
+  - ✅ 修正關鍵認證錯誤：使用 Firebase ID Token（而非 LINE LIFF Token）呼叫 API
+  - ✅ 通過 Architect 代碼審查
+  - 📋 已初始化三個巡邏點：
+    - 玉旨牌 (point-yuji): PATROL_YUJI_2025
+    - 萬應公 (point-wanying): PATROL_WANYING_2025
+    - 辦公室 (point-office): PATROL_OFFICE_2025
 - **2025-10-24 15:48**: 🔧 修正 Firebase 專案配置並新增自動化
   - 修正 /api/ping-admin 正確返回實際連接的專案 ID（checkin-76c77）
   - 新增 M8 Auto Tasks 自動化腳本（scripts/m8_auto_tasks.sh）
