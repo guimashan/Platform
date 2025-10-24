@@ -1,33 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken, getLiffProfile } from "@/lib/liff";
 import { authClient } from "@/lib/firebase";
 import { signInWithCustomToken } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { QrCode, Clock, CheckCircle, AlertCircle, User } from "lucide-react";
-
-interface CheckinHistory {
-  id: string;
-  patrolId: string;
-  patrolName: string;
-  ts: number;
-}
+import { QrCode, Clock, User } from "lucide-react";
 
 export default function CheckinPage() {
+  const router = useRouter();
   const [liffReady, setLiffReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
   
   const [qrInput, setQrInput] = useState("");
-  const [checkinStatus, setCheckinStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [statusMessage, setStatusMessage] = useState("");
-  
-  const [history, setHistory] = useState<CheckinHistory[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<"idle" | "loading">("idle");
 
   // 初始化 LIFF
   useEffect(() => {
@@ -45,8 +36,7 @@ export default function CheckinPage() {
           
           // 使用 LINE ID Token 登入 Firebase 並獲取 Firebase ID Token
           if (lineIdToken) {
-            const firebaseIdToken = await authenticateWithFirebase(lineIdToken);
-            await loadCheckinHistory(firebaseIdToken);
+            await authenticateWithFirebase(lineIdToken);
           }
         }
       } catch (error) {
@@ -84,41 +74,21 @@ export default function CheckinPage() {
     }
   };
 
-  // 載入簽到歷史
-  const loadCheckinHistory = async (token: string) => {
-    setLoadingHistory(true);
-    try {
-      const response = await fetch(`/api/checkin/history?idToken=${encodeURIComponent(token)}&limit=20`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setHistory(data.history || []);
-      }
-    } catch (error) {
-      console.error("載入簽到歷史失敗:", error);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
 
   // 處理簽到
   const handleCheckin = async () => {
     if (!qrInput.trim()) {
-      setStatusMessage("請輸入 QR Code");
-      setCheckinStatus("error");
+      alert("請輸入 QR Code");
       return;
     }
 
     setCheckinStatus("loading");
-    setStatusMessage("簽到中...");
 
     try {
       // 🔑 獲取最新的 Firebase ID Token（處理過期情況）
       const currentUser = authClient.currentUser;
       if (!currentUser) {
-        setStatusMessage("請重新登入");
-        setCheckinStatus("error");
-        setLoggedIn(false);
+        router.push("/checkin/fail?error=請重新登入");
         return;
       }
       
@@ -136,41 +106,24 @@ export default function CheckinPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setCheckinStatus("success");
-        setStatusMessage(`✅ 簽到成功！地點：${data.checkin.patrolName}`);
-        setQrInput("");
-        
-        // 重新載入歷史記錄
-        const currentUser = authClient.currentUser;
-        if (currentUser) {
-          const freshIdToken = await currentUser.getIdToken();
-          await loadCheckinHistory(freshIdToken);
-        }
-        
-        // 3秒後重置狀態
-        setTimeout(() => {
-          setCheckinStatus("idle");
-          setStatusMessage("");
-        }, 3000);
+        // ✅ 成功：跳轉到成功頁面
+        const params = new URLSearchParams({
+          patrol: data.checkin.patrolName,
+          ts: data.checkin.timestamp.toString(),
+        });
+        router.push(`/checkin/success?${params.toString()}`);
       } else {
-        setCheckinStatus("error");
-        setStatusMessage(data.error || "簽到失敗");
-        
-        // 5秒後重置狀態
-        setTimeout(() => {
-          setCheckinStatus("idle");
-          setStatusMessage("");
-        }, 5000);
+        // ❌ 失敗：跳轉到失敗頁面
+        const params = new URLSearchParams({
+          error: data.error || "簽到失敗",
+        });
+        router.push(`/checkin/fail?${params.toString()}`);
       }
     } catch (error) {
       console.error("簽到錯誤:", error);
-      setCheckinStatus("error");
-      setStatusMessage("網路錯誤，請稍後再試");
-      
-      setTimeout(() => {
-        setCheckinStatus("idle");
-        setStatusMessage("");
-      }, 5000);
+      router.push("/checkin/fail?error=網路錯誤，請稍後再試");
+    } finally {
+      setCheckinStatus("idle");
     }
   };
 
@@ -279,77 +232,15 @@ export default function CheckinPage() {
               {checkinStatus === "loading" ? "簽到中..." : "確認簽到"}
             </Button>
 
-            {/* 狀態訊息 */}
-            {statusMessage && (
-              <div
-                className={`flex items-center gap-2 p-3 rounded-lg ${
-                  checkinStatus === "success"
-                    ? "bg-green-50 text-green-700"
-                    : checkinStatus === "error"
-                    ? "bg-red-50 text-red-700"
-                    : "bg-blue-50 text-blue-700"
-                }`}
-                data-testid="text-status-message"
-              >
-                {checkinStatus === "success" && <CheckCircle className="w-5 h-5" />}
-                {checkinStatus === "error" && <AlertCircle className="w-5 h-5" />}
-                <span className="text-sm">{statusMessage}</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 簽到歷史 */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-orange-600" />
-              簽到歷史
-            </CardTitle>
-            <CardDescription>最近 20 筆簽到記錄</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loadingHistory && (
-              <div className="text-center py-8 text-gray-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-2"></div>
-                載入中...
-              </div>
-            )}
-
-            {!loadingHistory && history.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-sm">尚無簽到記錄</p>
-                <p className="text-xs mt-1">掃描 QR Code 開始簽到</p>
-              </div>
-            )}
-
-            {!loadingHistory && history.length > 0 && (
-              <div className="space-y-2">
-                {history.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-white hover-elevate"
-                    data-testid={`history-item-${item.id}`}
-                  >
-                    <div>
-                      <p className="font-medium text-sm" data-testid={`history-patrol-${item.id}`}>
-                        {item.patrolName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(item.ts).toLocaleString("zh-TW", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  </div>
-                ))}
-              </div>
-            )}
+            <Button
+              variant="outline"
+              onClick={() => router.push("/checkin/history")}
+              className="w-full"
+              data-testid="button-view-history"
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              查看簽到歷史
+            </Button>
           </CardContent>
         </Card>
 

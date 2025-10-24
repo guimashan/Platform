@@ -53,13 +53,20 @@ https://go.guimashan.org.tw/checkin
 ```
 src/
   app/
-    page.tsx           # 首頁
-    login/page.tsx     # LINE 登入頁
-    checkin/page.tsx   # 簽到系統
-    service/page.tsx   # 神務服務
-    schedule/page.tsx  # 志工排班系統
-    ok/page.tsx        # 成功頁面
-    layout.tsx         # 根布局
+    page.tsx                    # 首頁
+    login/page.tsx              # LINE 登入頁
+    checkin/
+      page.tsx                  # 簽到系統主頁（LINE LIFF 登入 + QR 輸入）
+      success/page.tsx          # 簽到成功頁
+      fail/page.tsx             # 簽到失敗頁
+      history/page.tsx          # 簽到歷史頁
+      manage/page.tsx           # 管理後台（需 Email 登入）
+    admin/
+      login/page.tsx            # 管理員登入頁
+    service/page.tsx            # 神務服務
+    schedule/page.tsx           # 志工排班系統
+    ok/page.tsx                 # 成功頁面
+    layout.tsx                  # 根布局
     api/
       auth/line/route.ts        # LINE 認證 API
       checkin/
@@ -177,6 +184,20 @@ tsconfig.json        # TypeScript 配置
 4. 觸發 Vercel 自動部署
 
 ## 最近更改
+- **2025-10-24 11:53**: ✅ M9 + 混合設計：建立多頁面架構
+  - ✅ 執行 M9 腳本建立多頁面結構
+  - ✅ 新建頁面：/checkin/success、/checkin/fail、/checkin/history、/checkin/manage、/admin/login
+  - ✅ 保留 /checkin 主頁的 LINE LIFF 整合和 QR 掃描功能
+  - ✅ 修改簽到流程：成功跳轉到 /checkin/success，失敗跳轉到 /checkin/fail
+  - ✅ 獨立歷史頁面整合 /api/checkin/history API
+  - ✅ 管理後台使用 Firebase Email 認證（獨立於 LINE 登入）
+  - 📋 頁面架構：
+    - /checkin - 主頁（LINE LIFF 登入 + QR 輸入）
+    - /checkin/success?patrol=xxx&ts=xxx - 成功頁
+    - /checkin/fail?error=xxx - 失敗頁
+    - /checkin/history - 歷史記錄（需登入）
+    - /checkin/manage - 管理後台（需 Email 登入）
+    - /admin/login - 管理員登入
 - **2025-10-24 11:45**: ✅ 完成奉香簽到系統核心功能
   - ✅ 建立巡邏點系統（玉旨牌/萬應公/辦公室）並初始化到 Firestore
   - ✅ 實作 /api/checkin/create 核心簽到邏輯（寫入 Firestore checkin-76c77）
