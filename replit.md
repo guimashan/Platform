@@ -184,6 +184,16 @@ tsconfig.json        # TypeScript 配置
 4. 觸發 Vercel 自動部署
 
 ## 最近更改
+- **2025-10-24 12:25**: ✅ 更新 QR Code 格式
+  - 移除年份後綴（PATROL_YUJI_2025 → PATROL_YUJI）
+  - 更新 Firestore 資料庫（checkin-76c77）
+  - 修改初始化腳本支援更新現有巡邏點
+  - 正式環境已生效
+- **2025-10-24 12:20**: ✅ Vercel 部署成功
+  - 修正預渲染錯誤（使用 Suspense + force-dynamic）
+  - 優化 Firestore 查詢（避免索引問題）
+  - 正式環境全面檢測通過（10/10）
+  - 平均頁面載入速度：132ms
 - **2025-10-24 11:53**: ✅ M9 + 混合設計：建立多頁面架構
   - ✅ 執行 M9 腳本建立多頁面結構
   - ✅ 新建頁面：/checkin/success、/checkin/fail、/checkin/history、/checkin/manage、/admin/login
@@ -217,9 +227,9 @@ tsconfig.json        # TypeScript 配置
   - ✅ 修正關鍵認證錯誤：使用 Firebase ID Token（而非 LINE LIFF Token）呼叫 API
   - ✅ 通過 Architect 代碼審查
   - 📋 已初始化三個巡邏點：
-    - 玉旨牌 (point-yuji): PATROL_YUJI_2025
-    - 萬應公 (point-wanying): PATROL_WANYING_2025
-    - 辦公室 (point-office): PATROL_OFFICE_2025
+    - 玉旨牌 (point-yuji): PATROL_YUJI
+    - 萬應公 (point-wanying): PATROL_WANYING
+    - 辦公室 (point-office): PATROL_OFFICE
 - **2025-10-24 15:48**: 🔧 修正 Firebase 專案配置並新增自動化
   - 修正 /api/ping-admin 正確返回實際連接的專案 ID（checkin-76c77）
   - 新增 M8 Auto Tasks 自動化腳本（scripts/m8_auto_tasks.sh）
