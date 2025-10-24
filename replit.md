@@ -36,3 +36,26 @@ The platform utilizes a dual-layer Firebase architecture (`platform-bc783` for a
     -   **`checkin-76c77` (Business Data Layer)**: Firebase Firestore (for check-in records, patrol points, service applications, schedules).
     -   Firebase Admin SDK for server-side operations.
 -   **Vercel**: For deployment and hosting, integrated with Vercel Admin API, Project ID, Org ID, and Deploy Hooks for automated deployments.
+
+## Recent Updates
+
+### 2025-10-24 17:45 - 巡邏點管理功能
+- ✅ 建立網頁管理介面（`/checkin/manage/points`）
+- ✅ admin 可新增/編輯/刪除/啟用/停用巡邏點
+- ✅ 使用 react-hook-form + Zod schema 驗證
+- ✅ 完整的 shadcn 元件系統（Dialog, Table, Form, Badge）
+- ✅ GPS 座標驗證（緯度 -90~90、經度 -180~180）
+- ✅ 權限控制：只有 checkin admin 和 SuperAdmin 可訪問
+- ✅ 通過 Architect 代碼審查
+
+### 2025-10-24 17:20 - 完整測試系統
+- ✅ API 自動化測試（`tests/api-test.js`）
+- ✅ 整合測試（`tests/integration-test.js`）
+- ✅ 前端功能測試清單（`tests/frontend-test.md`）- 105 項測試點
+- ✅ 測試系統總覽（`tests/TEST_OVERVIEW.md`）
+
+### 2025-10-24 17:15 - 混合式管理介面
+- ✅ 總管理中心（`/admin/users`）- SuperAdmin 可管理所有系統
+- ✅ 奉香人員管理（`/checkin/manage/users`）- checkin admin 管理奉香系統
+- ✅ 權限分層正確實現
+- ✅ 修正 GPS 非同步問題
