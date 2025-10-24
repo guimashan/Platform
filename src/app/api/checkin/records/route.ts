@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/admin";
+import { checkinAdminDb } from "@/lib/admin-checkin";
+import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
 import type { Checkin } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -7,22 +8,13 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "未授權：缺少 Token" }, { status: 401 });
-    }
-
-    const idToken = authHeader.substring(7);
+    const auth = await verifyAuth(authHeader);
     
-    let decodedToken;
-    try {
-      decodedToken = await adminAuth.verifyIdToken(idToken);
-    } catch (error) {
+    if (!auth) {
       return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
     }
 
-    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
-    const userData = userDoc.data();
-    if (!userData?.isSuperAdmin && !userData?.roles?.checkin_admin) {
+    if (!hasCheckinAdmin(auth)) {
       return NextResponse.json(
         { error: "權限不足：需要管理員權限" },
         { status: 403 }
@@ -38,7 +30,7 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate") || "";
     const cursor = searchParams.get("cursor") || "";
 
-    let query: any = adminDb.collection("checkins");
+    let query: any = checkinAdminDb().collection("checkins");
 
     if (patrolId) {
       query = query.where("patrolId", "==", patrolId);
@@ -59,7 +51,7 @@ export async function GET(req: NextRequest) {
 
     if (cursor) {
       try {
-        const cursorDoc = await adminDb.collection("checkins").doc(cursor).get();
+        const cursorDoc = await checkinAdminDb().collection("checkins").doc(cursor).get();
         if (cursorDoc.exists) {
           query = query.startAfter(cursorDoc);
         }

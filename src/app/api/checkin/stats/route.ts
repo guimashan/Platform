@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/admin";
+import { checkinAdminDb } from "@/lib/admin-checkin";
+import { platformAdminDb } from "@/lib/admin-platform";
+import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
 import type { Checkin } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -11,28 +13,16 @@ interface CheckinWithDate extends Omit<Checkin, 'ts'> {
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "未授權：缺少 Token" },
-        { status: 401 }
-      );
-    }
-
-    const idToken = authHeader.substring(7);
+    const auth = await verifyAuth(authHeader);
     
-    let decodedToken;
-    try {
-      decodedToken = await adminAuth.verifyIdToken(idToken);
-    } catch (error) {
+    if (!auth) {
       return NextResponse.json(
         { error: "未授權：無效的 Token" },
         { status: 401 }
       );
     }
 
-    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
-    const userData = userDoc.data();
-    if (!userData?.isSuperAdmin && !userData?.roles?.checkin_admin) {
+    if (!hasCheckinAdmin(auth)) {
       return NextResponse.json(
         { error: "權限不足：需要管理員權限" },
         { status: 403 }
@@ -46,7 +36,7 @@ export async function GET(req: NextRequest) {
     const lastMonthStart = new Date(monthStart);
     lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
 
-    const checkinsRef = adminDb.collection("checkins");
+    const checkinsRef = checkinAdminDb().collection("checkins");
 
     const monthCheckinsSnapshot = await checkinsRef
       .where("ts", ">=", lastMonthStart.getTime())
@@ -64,8 +54,8 @@ export async function GET(req: NextRequest) {
     });
 
     const [allUsers, allPoints] = await Promise.all([
-      adminDb.collection("users").get(),
-      adminDb.collection("points").where("active", "==", true).get(),
+      platformAdminDb().collection("users").get(),
+      checkinAdminDb().collection("points").where("active", "==", true).get(),
     ]);
 
     const todayCheckins = checkins.filter((c) => c.ts >= todayStart);

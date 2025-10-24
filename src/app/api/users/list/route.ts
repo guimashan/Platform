@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/admin";
+import { platformAdminDb } from "@/lib/admin-platform";
+import { checkinAdminDb } from "@/lib/admin-checkin";
+import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
 import type { UserDoc } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -7,32 +9,23 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "未授權：缺少 Token" }, { status: 401 });
-    }
-
-    const idToken = authHeader.substring(7);
+    const auth = await verifyAuth(authHeader);
     
-    let decodedToken;
-    try {
-      decodedToken = await adminAuth.verifyIdToken(idToken);
-    } catch (error) {
+    if (!auth) {
       return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
     }
 
-    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
-    const userData = userDoc.data();
-    if (!userData?.isSuperAdmin && !userData?.roles?.checkin_admin) {
+    if (!hasCheckinAdmin(auth)) {
       return NextResponse.json({ error: "權限不足" }, { status: 403 });
     }
 
-    const usersSnapshot = await adminDb.collection("users").get();
+    const usersSnapshot = await platformAdminDb().collection("users").get();
     const users: (UserDoc & { id: string })[] = usersSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...(doc.data() as UserDoc),
     }));
 
-    const checkinsSnapshot = await adminDb.collection("checkins").get();
+    const checkinsSnapshot = await checkinAdminDb().collection("checkins").get();
     const checkinCounts = new Map<string, number>();
     checkinsSnapshot.docs.forEach((doc) => {
       const uid = doc.data().uid;
