@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/firebase";
+import { platformAuth } from "@/lib/firebase-platform";
 import { signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,8 +44,8 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      await signInWithEmailAndPassword(authClient, email, password);
-      router.push("/checkin/manage");
+      await signInWithEmailAndPassword(platformAuth, email, password);
+      router.push("/admin");
     } catch (err: any) {
       console.error("登入錯誤:", err);
       
@@ -93,8 +93,8 @@ export default function AdminLoginPage() {
       }
 
       const { customToken } = await response.json();
-      await signInWithCustomToken(authClient, customToken);
-      router.push("/checkin/manage");
+      await signInWithCustomToken(platformAuth, customToken);
+      router.push("/admin");
     } catch (err: any) {
       console.error("LINE 登入錯誤:", err);
       setError("LINE 登入失敗，請稍後再試");
