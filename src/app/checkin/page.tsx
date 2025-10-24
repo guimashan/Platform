@@ -19,6 +19,8 @@ export default function CheckinPage() {
   
   const [qrInput, setQrInput] = useState("");
   const [checkinStatus, setCheckinStatus] = useState<"idle" | "loading">("idle");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
   // 初始化 LIFF
   useEffect(() => {
@@ -75,11 +77,43 @@ export default function CheckinPage() {
   };
 
 
+  // 獲取 GPS 位置
+  const requestLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError("您的裝置不支援 GPS 定位");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setGpsError(null);
+      },
+      (error) => {
+        console.error("GPS 錯誤:", error);
+        setGpsError(`GPS 定位失敗: ${error.message}`);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   // 處理簽到
   const handleCheckin = async () => {
     if (!qrInput.trim()) {
       alert("請輸入 QR Code");
       return;
+    }
+
+    // 嘗試獲取 GPS 位置（非強制，由後端決定是否需要）
+    if (!userLocation && navigator.geolocation) {
+      requestLocation();
     }
 
     setCheckinStatus("loading");
@@ -100,6 +134,8 @@ export default function CheckinPage() {
         body: JSON.stringify({
           idToken: freshIdToken,
           qrCode: qrInput.trim(),
+          userLat: userLocation?.lat,
+          userLng: userLocation?.lng,
         }),
       });
 

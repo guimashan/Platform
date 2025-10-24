@@ -1,129 +1,207 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkinAdminDb } from "@/lib/admin-checkin";
-import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
-import type { Patrol } from "@/types";
+import { verifyAuth, checkManagePatrolsPermission } from "@/lib/auth-helpers";
 
-export const dynamic = "force-dynamic";
+/**
+ * 取得所有巡邏點
+ * GET /api/checkin/points/manage
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return NextResponse.json({ error: "未提供認證" }, { status: 401 });
+    }
 
+    const token = authHeader.replace("Bearer ", "");
+    const { uid, userData } = await verifyAuth(token);
+
+    // 檢查權限
+    const permission = checkManagePatrolsPermission(userData);
+    if (!permission.allowed) {
+      return NextResponse.json(
+        { error: permission.reason },
+        { status: 403 }
+      );
+    }
+
+    const db = checkinAdminDb();
+    const snapshot = await db.collection("points").orderBy("createdAt", "desc").get();
+
+    const patrols = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return NextResponse.json({ patrols });
+  } catch (error: any) {
+    console.error("[checkin/points/manage GET] ERROR:", error);
+    return NextResponse.json(
+      { error: error.message || "取得巡邏點失敗" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * 新增巡邏點
+ * POST /api/checkin/points/manage
+ */
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const auth = await verifyAuth(authHeader);
-    
-    if (!auth) {
-      return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
+    if (!authHeader) {
+      return NextResponse.json({ error: "未提供認證" }, { status: 401 });
     }
 
-    if (!hasCheckinAdmin(auth)) {
-      return NextResponse.json({ error: "權限不足" }, { status: 403 });
+    const token = authHeader.replace("Bearer ", "");
+    const { uid, userData } = await verifyAuth(token);
+
+    // 檢查權限
+    const permission = checkManagePatrolsPermission(userData);
+    if (!permission.allowed) {
+      return NextResponse.json(
+        { error: permission.reason },
+        { status: 403 }
+      );
     }
 
-    const { name, qr } = await req.json();
+    const { name, qr, lat, lng, tolerance, active } = await req.json();
 
-    if (!name || !qr) {
-      return NextResponse.json({ error: "缺少必要參數" }, { status: 400 });
+    if (!name || !qr || lat === undefined || lng === undefined || tolerance === undefined) {
+      return NextResponse.json(
+        { error: "缺少必要欄位（name, qr, lat, lng, tolerance）" },
+        { status: 400 }
+      );
     }
 
-    const existingPoint = await checkinAdminDb()
-      .collection("points")
-      .where("qr", "==", qr)
-      .limit(1)
-      .get();
+    const db = checkinAdminDb();
+    const patrolRef = db.collection("points").doc();
 
-    if (!existingPoint.empty) {
-      return NextResponse.json({ error: "QR Code 已存在" }, { status: 400 });
-    }
-
-    const patrolData: Omit<Patrol, "id"> = {
+    await patrolRef.set({
+      id: patrolRef.id,
       name,
       qr,
-      active: true,
-      createdAt: Date.now(),
-    };
-
-    const docRef = await checkinAdminDb().collection("points").add(patrolData);
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      tolerance: parseFloat(tolerance),
+      active: active !== false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     return NextResponse.json({
-      ok: true,
-      id: docRef.id,
-      patrol: { id: docRef.id, ...patrolData },
+      success: true,
+      patrolId: patrolRef.id,
     });
   } catch (error: any) {
-    console.error("新增巡邏點錯誤:", error);
+    console.error("[checkin/points/manage POST] ERROR:", error);
     return NextResponse.json(
-      { error: "伺服器錯誤", details: error.message },
+      { error: error.message || "新增巡邏點失敗" },
       { status: 500 }
     );
   }
 }
 
+/**
+ * 更新巡邏點
+ * PATCH /api/checkin/points/manage
+ */
 export async function PATCH(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const auth = await verifyAuth(authHeader);
-    
-    if (!auth) {
-      return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
+    if (!authHeader) {
+      return NextResponse.json({ error: "未提供認證" }, { status: 401 });
     }
 
-    if (!hasCheckinAdmin(auth)) {
-      return NextResponse.json({ error: "權限不足" }, { status: 403 });
+    const token = authHeader.replace("Bearer ", "");
+    const { uid, userData } = await verifyAuth(token);
+
+    // 檢查權限
+    const permission = checkManagePatrolsPermission(userData);
+    if (!permission.allowed) {
+      return NextResponse.json(
+        { error: permission.reason },
+        { status: 403 }
+      );
     }
 
-    const { id, name, qr, active } = await req.json();
+    const { patrolId, name, qr, lat, lng, tolerance, active } = await req.json();
 
-    if (!id) {
-      return NextResponse.json({ error: "缺少巡邏點 ID" }, { status: 400 });
+    if (!patrolId) {
+      return NextResponse.json(
+        { error: "缺少 patrolId" },
+        { status: 400 }
+      );
     }
 
-    const updateData: Partial<Patrol> = {};
+    const db = checkinAdminDb();
+    const updateData: any = { updatedAt: new Date() };
+
     if (name !== undefined) updateData.name = name;
     if (qr !== undefined) updateData.qr = qr;
+    if (lat !== undefined) updateData.lat = parseFloat(lat);
+    if (lng !== undefined) updateData.lng = parseFloat(lng);
+    if (tolerance !== undefined) updateData.tolerance = parseFloat(tolerance);
     if (active !== undefined) updateData.active = active;
 
-    if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "沒有需要更新的欄位" }, { status: 400 });
-    }
+    await db.collection("points").doc(patrolId).update(updateData);
 
-    await checkinAdminDb().collection("points").doc(id).update(updateData);
-
-    return NextResponse.json({ ok: true, updated: updateData });
+    return NextResponse.json({
+      success: true,
+    });
   } catch (error: any) {
-    console.error("更新巡邏點錯誤:", error);
+    console.error("[checkin/points/manage PATCH] ERROR:", error);
     return NextResponse.json(
-      { error: "伺服器錯誤", details: error.message },
+      { error: error.message || "更新巡邏點失敗" },
       { status: 500 }
     );
   }
 }
 
+/**
+ * 刪除巡邏點
+ * DELETE /api/checkin/points/manage
+ */
 export async function DELETE(req: NextRequest) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const auth = await verifyAuth(authHeader);
-    
-    if (!auth) {
-      return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
+    if (!authHeader) {
+      return NextResponse.json({ error: "未提供認證" }, { status: 401 });
     }
 
-    if (!hasCheckinAdmin(auth)) {
-      return NextResponse.json({ error: "權限不足" }, { status: 403 });
+    const token = authHeader.replace("Bearer ", "");
+    const { uid, userData } = await verifyAuth(token);
+
+    // 檢查權限
+    const permission = checkManagePatrolsPermission(userData);
+    if (!permission.allowed) {
+      return NextResponse.json(
+        { error: permission.reason },
+        { status: 403 }
+      );
     }
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const patrolId = searchParams.get("patrolId");
 
-    if (!id) {
-      return NextResponse.json({ error: "缺少巡邏點 ID" }, { status: 400 });
+    if (!patrolId) {
+      return NextResponse.json(
+        { error: "缺少 patrolId" },
+        { status: 400 }
+      );
     }
 
-    await checkinAdminDb().collection("points").doc(id).delete();
+    const db = checkinAdminDb();
+    await db.collection("points").doc(patrolId).delete();
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      success: true,
+    });
   } catch (error: any) {
-    console.error("刪除巡邏點錯誤:", error);
+    console.error("[checkin/points/manage DELETE] ERROR:", error);
     return NextResponse.json(
-      { error: "伺服器錯誤", details: error.message },
+      { error: error.message || "刪除巡邏點失敗" },
       { status: 500 }
     );
   }
