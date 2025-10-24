@@ -1,6 +1,6 @@
 {
-  "/page": "app/page.js",
   "/api/ping/route": "app/api/ping/route.js",
   "/api/ping-admin/route": "app/api/ping-admin/route.js",
-  "/api/checkin/points/route": "app/api/checkin/points/route.js"
+  "/api/checkin/points/route": "app/api/checkin/points/route.js",
+  "/api/checkin/points/manage/route": "app/api/checkin/points/manage/route.js"
 }
