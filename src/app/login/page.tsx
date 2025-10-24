@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     handleLineLogin();
-  }, [router]);
+  }, []);
 
   const handleLineLogin = async () => {
     try {
@@ -36,19 +36,25 @@ export default function LoginPage() {
 
       // 2. 檢查是否已登入
       if (!isLiffLoggedIn()) {
-        setMessage("請使用 LINE 登入");
+        setMessage("正在跳轉到 LINE 登入頁面...");
         liffLogin();
         return;
       }
 
-      // 3. 獲取 ID Token 和 Profile
+      // 3. 獲取 ID Token
       setMessage("正在驗證身份...");
       const idToken = await getLiffIdToken();
       if (!idToken) {
         throw new Error("無法取得 LINE 登入憑證");
       }
 
+      // 4. 獲取 Profile
       const profile = await getLiffProfile();
+      if (!profile) {
+        throw new Error("無法取得 LINE 使用者資料");
+      }
+
+      // 5. 檢查 email
       const decodedToken = getDecodedIdToken();
       const email = decodedToken?.email;
 
@@ -90,7 +96,7 @@ export default function LoginPage() {
   };
 
   const completeLineLogin = async (idToken: string, email: string, profile: any) => {
-    // 4. 呼叫後端 API 換取 Firebase Custom Token
+    // 呼叫後端 API 換取 Firebase Custom Token
     setMessage("正在連接伺服器...");
     const response = await apiRequest<LineAuthResponse>(
       "POST",
@@ -107,11 +113,11 @@ export default function LoginPage() {
       throw new Error(response.error || "伺服器認證失敗");
     }
 
-    // 5. 使用 Custom Token 登入 Firebase
+    // 使用 Custom Token 登入 Firebase
     setMessage("正在完成登入...");
     await signInWithCustomToken(authClient, response.customToken);
 
-    // 6. 登入成功，導向首頁
+    // 登入成功，導向首頁
     setMessage("登入成功！");
     setTimeout(() => {
       router.push("/");
@@ -127,6 +133,7 @@ export default function LoginPage() {
     router.push("/");
   };
 
+  // 顯示 Email 輸入介面
   if (needEmailInput) {
     return (
       <main className="min-h-screen flex items-center justify-center py-12 px-4">
@@ -138,7 +145,7 @@ export default function LoginPage() {
           <CardContent className="space-y-4">
             <div className="p-4 bg-blue-50 rounded-md border border-blue-200">
               <p className="text-sm text-blue-800 mb-2">
-                <strong>LINE 使用者：</strong>{lineProfile?.displayName}
+                <strong>LINE 使用者：</strong>{lineProfile?.displayName || "未知"}
               </p>
               <p className="text-xs text-blue-600">
                 由於 LINE 帳號未公開 Email，請手動輸入您的 Email 地址以完成註冊。
@@ -192,6 +199,7 @@ export default function LoginPage() {
     );
   }
 
+  // 顯示 Loading 或錯誤畫面
   return (
     <main className="min-h-screen flex items-center justify-center py-12 px-4">
       <Card className="w-full max-w-md">
