@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/firebase-platform";
+import { platformAuth } from "@/lib/firebase-platform";
 import type { UserDoc } from "@/types";
 
 export default function CheckinUsersPage() {
@@ -15,7 +15,7 @@ export default function CheckinUsersPage() {
   const [editingRole, setEditingRole] = useState<string>("user");
 
   useEffect(() => {
-    const unsubscribe = authClient.onAuthStateChanged(async (user) => {
+    const unsubscribe = platformAuth.onAuthStateChanged(async (user) => {
       if (!user) {
         router.push("/admin/login");
         return;
