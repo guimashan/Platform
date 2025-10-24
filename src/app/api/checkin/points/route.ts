@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/admin';
 import type { Patrol } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/checkin/points
  * 取得所有啟用的巡邏點
@@ -11,7 +13,6 @@ export async function GET() {
     const pointsSnapshot = await adminDb
       .collection('points')
       .where('active', '==', true)
-      .orderBy('createdAt', 'asc')
       .get();
 
     const points: Patrol[] = [];
@@ -25,6 +26,9 @@ export async function GET() {
         createdAt: data.createdAt,
       });
     });
+
+    // 在記憶體中排序（避免需要 Firestore 索引）
+    points.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
     return NextResponse.json({
       ok: true,

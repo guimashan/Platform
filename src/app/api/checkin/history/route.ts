@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/admin';
 import type { Checkin, Patrol } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/checkin/history?idToken=xxx&limit=20
  * 取得使用者的簽到歷史記錄
