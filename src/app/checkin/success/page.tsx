@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { CheckCircle } from "lucide-react";
 
 export const dynamic = 'force-dynamic';
 
-export default function CheckinSuccessPage() {
+function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [patrolName, setPatrolName] = useState("");
@@ -85,5 +85,17 @@ export default function CheckinSuccessPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function CheckinSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">載入中...</div>
+      </div>
+    }>
+      <SuccessContent />
+    </Suspense>
   );
 }
