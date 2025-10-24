@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkinAdminDb } from "@/lib/admin-checkin";
+import { platformAdminDb } from "@/lib/admin-platform";
 import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
 import type { Checkin } from "@/types";
 
@@ -77,13 +78,13 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const pointsSnapshot = await adminDb.collection("points").get();
+    const pointsSnapshot = await checkinAdminDb().collection("points").get();
     const pointsMap = new Map<string, string>();
     pointsSnapshot.docs.forEach((doc) => {
       pointsMap.set(doc.id, doc.data().name);
     });
 
-    const usersSnapshot = await adminDb.collection("users").get();
+    const usersSnapshot = await platformAdminDb().collection("users").get();
     const usersMap = new Map<string, string>();
     usersSnapshot.docs.forEach((doc) => {
       usersMap.set(doc.id, doc.data().displayName || "未知");

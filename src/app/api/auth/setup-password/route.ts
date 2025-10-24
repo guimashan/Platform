@@ -56,10 +56,12 @@ export async function POST(req: Request) {
         displayName: userData?.displayName || "使用者"
       });
     } catch (err: any) {
-      // 如果帳號已存在，更新密碼
+      // 如果帳號已存在，更新 email、password 和 displayName
       if (err.code === "auth/uid-already-exists") {
         await platformAdminAuth().updateUser(uid, {
-          password
+          email,
+          password,
+          displayName: userData?.displayName || "使用者"
         });
       } else {
         throw err;

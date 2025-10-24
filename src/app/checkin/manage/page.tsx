@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/firebase";
+import { platformAuth } from "@/lib/firebase-platform";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -39,7 +39,7 @@ export default function CheckinManagePage() {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
 
   useEffect(() => {
-    const unsubscribe = authClient.onAuthStateChanged((currentUser) => {
+    const unsubscribe = platformAuth.onAuthStateChanged((currentUser) => {
       if (!currentUser) {
         router.push("/admin/login");
       } else {
@@ -72,7 +72,7 @@ export default function CheckinManagePage() {
   };
 
   const handleLogout = async () => {
-    await authClient.signOut();
+    await platformAuth.signOut();
     router.push("/admin/login");
   };
 
