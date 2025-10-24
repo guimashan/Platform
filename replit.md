@@ -9,12 +9,12 @@ The 龜馬山整合服務平台 (goLine Platform) is a comprehensive service pla
 - 簡潔清晰的 UI/UX
 
 ### System Architecture
-The platform utilizes a dual-layer Firebase architecture (`platform-bc783` for authentication and `checkin-76c77` for business data) to ensure robust security and data separation.
+The platform utilizes a four-layer Firebase architecture (`platform-bc783` for unified authentication, and three business layers: `checkin-76c77` for check-ins, `schedule-48ff9` for scheduling, `service-b9d4a` for divine services) to ensure robust security and data separation.
 
 **Core Features:**
 1.  **LINE Login**: User authentication via LINE LIFF SDK.
-2.  **Incense Offering Check-in System**: Manages check-ins for volunteers and devotees.
-3.  **Divine Service System**: Handles service applications and inquiries.
+2.  **Incense Offering Check-in System**: Manages check-ins for volunteers and devotees with GPS-verified patrol points.
+3.  **神服服務系統 (Divine Service System)**: Handles service applications and inquiries.
 4.  **Volunteer Shift Management**: Manages schedules and shift changes.
 
 **Technical Implementations:**
@@ -23,21 +23,33 @@ The platform utilizes a dual-layer Firebase architecture (`platform-bc783` for a
 -   **SuperAdmin Mechanism**: The first registered user automatically becomes a SuperAdmin with full administrative privileges across check-in, schedule, and service systems.
 
 **System Design Choices:**
--   **Dual-layer Firebase**: `platform-bc783` for unified authentication (LINE + Email/Password) and `checkin-76c77` for operational data (check-in records, patrol points).
+-   **Four-layer Firebase Architecture**: 
+    - `platform-bc783` (Authentication Layer): Unified authentication (LINE + Email/Password)
+    - `checkin-76c77` (Check-in Business Layer): Check-in records, patrol points
+    - `schedule-48ff9` (Schedule Business Layer): Volunteer schedules, shift management
+    - `service-b9d4a` (神服 Business Layer): Service applications, inquiries
 -   **Login Flow**: For administrators, the initial login is via LINE, followed by password setup for subsequent Email logins.
--   **Data Separation**: User data resides in the `platform` project, while business-specific data is in the `checkin` project.
+-   **Data Separation**: User data resides in the `platform` project, while business-specific data is in respective business layer projects.
 -   **Hybrid Management Interface**: Includes a central administration panel (`/admin`) for SuperAdmins and specific management interfaces (e.g., `/checkin/manage`) for role-based access.
 -   **QR Code System**: Uses QR codes for patrol point check-ins.
 
 ### External Dependencies
 -   **LINE Platform**: LINE LIFF SDK, LINE Channel ID, LINE Channel Secret, LINE Channel Access Token.
--   **Firebase**:
-    -   **`platform-bc783` (Authentication Layer)**: Firebase Authentication, Firestore (for user data).
-    -   **`checkin-76c77` (Business Data Layer)**: Firebase Firestore (for check-in records, patrol points, service applications, schedules).
+-   **Firebase (Four-layer Architecture)**:
+    -   **`platform-bc783` (Authentication Layer)**: Firebase Authentication, Firestore (for user data and roles).
+    -   **`checkin-76c77` (Check-in Business Layer)**: Firebase Firestore (for check-in records, patrol points).
+    -   **`schedule-48ff9` (Schedule Business Layer)**: Firebase Firestore (for volunteer schedules, shift management).
+    -   **`service-b9d4a` (神服 Business Layer)**: Firebase Firestore (for service applications, inquiries).
     -   Firebase Admin SDK for server-side operations.
--   **Vercel**: For deployment and hosting, integrated with Vercel Admin API, Project ID, Org ID, and Deploy Hooks for automated deployments.
+-   **Vercel/Replit**: For deployment and hosting.
 
 ## Recent Updates
+
+### 2025-10-24 19:00 - 四層 Firebase 架構配置完成
+- ✅ 確認四層架構：platform-bc783 (認證) + checkin-76c77 (奉香) + schedule-48ff9 (排班) + service-b9d4a (神服)
+- ✅ 取得所有 Firebase 配置資料
+- 📋 待設定：排班系統和神服系統的環境變數（共 12 個）
+- 🚀 正在進行 Autoscale 部署
 
 ### 2025-10-24 17:45 - 巡邏點管理功能
 - ✅ 建立網頁管理介面（`/checkin/manage/points`）
