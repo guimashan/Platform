@@ -1,0 +1,77 @@
+# === 🧩 M9 前端初始化：奉香簽到系統頁面構建 ===
+echo "🚀 M9 前端初始化開始：奉香簽到系統頁面構建"
+
+# 1️⃣ 建立 checkin 相關頁面資料夾（Next.js App Router）
+mkdir -p src/app/checkin/success src/app/checkin/fail src/app/checkin/history src/app/checkin/manage src/app/admin/login
+
+# 2️⃣ 建立各頁面範本
+cat <<'EOF' > src/app/checkin/success/page.tsx
+export default function CheckinSuccessPage() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-white to-green-50">
+      <h1 className="text-3xl font-bold text-green-700 mb-4">簽到成功 ✅</h1>
+      <p className="text-gray-700">感謝您的奉香！祝您修持精進，道氣長存。</p>
+    </main>
+  );
+}
+EOF
+
+cat <<'EOF' > src/app/checkin/fail/page.tsx
+export default function CheckinFailPage() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-white to-red-50">
+      <h1 className="text-3xl font-bold text-red-600 mb-4">簽到失敗 ❌</h1>
+      <p className="text-gray-700">請確認您的位置或網路連線，再試一次。</p>
+    </main>
+  );
+}
+EOF
+
+cat <<'EOF' > src/app/checkin/history/page.tsx
+export default function CheckinHistoryPage() {
+  return (
+    <main className="min-h-screen p-8 bg-gray-50">
+      <h1 className="text-2xl font-bold mb-6">歷史簽到紀錄</h1>
+      <p className="text-gray-600">此處將顯示您過去的巡邏打卡紀錄。</p>
+    </main>
+  );
+}
+EOF
+
+cat <<'EOF' > src/app/admin/login/page.tsx
+export default function AdminLoginPage() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+      <h1 className="text-2xl font-bold mb-4">管理員登入</h1>
+      <form className="flex flex-col w-72 gap-4">
+        <input type="email" placeholder="電子郵件" className="input input-bordered w-full" />
+        <input type="password" placeholder="密碼" className="input input-bordered w-full" />
+        <button className="btn btn-primary w-full">登入</button>
+      </form>
+    </main>
+  );
+}
+EOF
+
+cat <<'EOF' > src/app/checkin/manage/page.tsx
+export default function CheckinManagePage() {
+  return (
+    <main className="min-h-screen p-8 bg-white">
+      <h1 className="text-2xl font-bold mb-4">奉香簽到管理後台</h1>
+      <p className="text-gray-600">此頁面將顯示簽到記錄與巡邏點資料管理功能。</p>
+    </main>
+  );
+}
+EOF
+
+# 3️⃣ Git 提交（自動同步至 G 社）
+git add .
+git commit -m "M9: 建立奉香簽到系統前端頁面（成功/失敗/歷史/管理/登入）"
+git push origin main
+
+echo "✅ M9 前端頁面初始化完成，請在 Vercel 自動部署後前往下列路徑測試："
+echo "🔗 https://go.guimashan.org.tw/checkin/success"
+echo "🔗 https://go.guimashan.org.tw/checkin/fail"
+echo "🔗 https://go.guimashan.org.tw/checkin/history"
+echo "🔗 https://go.guimashan.org.tw/admin/login"
+echo "🔗 https://go.guimashan.org.tw/checkin/manage"
