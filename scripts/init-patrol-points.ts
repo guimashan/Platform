@@ -1,102 +1,77 @@
-#!/usr/bin/env tsx
-/**
- * 初始化巡邏點資料到 Firestore
- * 執行：npx tsx scripts/init-patrol-points.ts
- */
+// 初始化巡邏點（含 GPS 座標）
+import { checkinAdminDb } from "../src/lib/admin-checkin";
 
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// 載入環境變數
-const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-
-if (!serviceAccountJson) {
-  console.error('❌ FIREBASE_SERVICE_ACCOUNT_JSON 環境變數未設置');
-  process.exit(1);
-}
-
-const serviceAccount = JSON.parse(serviceAccountJson);
-
-// 初始化 Firebase Admin
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: serviceAccount.project_id,
-      clientEmail: serviceAccount.client_email,
-      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
-    }),
-  });
-}
-
-const db = getFirestore();
-
-// 三個巡邏點定義
 const patrolPoints = [
   {
-    id: 'point-yuji',
-    name: '玉旨牌',
-    qr: 'PATROL_YUJI',
+    id: "point-yuji",
+    name: "玉旨牌",
+    qr: "PATROL_YUJI",
+    lat: 25.147924, // 龜馬山玉旨牌實際座標（需更新為真實座標）
+    lng: 121.410296,
+    tolerance: 50, // 50 公尺容許誤差
     active: true,
-    createdAt: Date.now(),
   },
   {
-    id: 'point-wanying',
-    name: '萬應公',
-    qr: 'PATROL_WANYING',
+    id: "point-wanying",
+    name: "萬應公",
+    qr: "PATROL_WANYING",
+    lat: 25.148124, // 萬應公實際座標（需更新為真實座標）
+    lng: 121.410496,
+    tolerance: 50,
     active: true,
-    createdAt: Date.now(),
   },
   {
-    id: 'point-office',
-    name: '辦公室',
-    qr: 'PATROL_OFFICE',
+    id: "point-office",
+    name: "辦公室",
+    qr: "PATROL_OFFICE",
+    lat: 25.147724, // 辦公室實際座標（需更新為真實座標）
+    lng: 121.410096,
+    tolerance: 30, // 辦公室容許誤差較小
     active: true,
-    createdAt: Date.now(),
   },
 ];
 
 async function initPatrolPoints() {
-  console.log('🚀 開始初始化巡邏點...');
-  console.log(`📊 Firestore 專案：${serviceAccount.project_id}`);
-  console.log('');
+  console.log("🚀 開始初始化巡邏點（含 GPS 座標）...");
 
-  for (const point of patrolPoints) {
-    try {
-      const docRef = db.collection('points').doc(point.id);
-      const doc = await docRef.get();
+  try {
+    const db = checkinAdminDb();
+    const batch = db.batch();
+
+    for (const point of patrolPoints) {
+      const ref = db.collection("points").doc(point.id);
+      const doc = await ref.get();
 
       if (doc.exists) {
-        // 更新現有巡邏點（保留原始 createdAt）
-        const existingData = doc.data();
-        await docRef.update({
-          name: point.name,
-          qr: point.qr,
-          active: point.active,
+        // 更新現有巡邏點（加入 GPS 座標）
+        batch.update(ref, {
+          ...point,
+          updatedAt: new Date(),
         });
-        console.log(`🔄 ${point.name} (${point.id}) 更新成功`);
-        console.log(`   QR Code: ${point.qr}`);
+        console.log(`✅ 更新巡邏點: ${point.name} (${point.id}) - GPS: ${point.lat}, ${point.lng}`);
       } else {
-        await docRef.set(point);
-        console.log(`✅ ${point.name} (${point.id}) 建立成功`);
-        console.log(`   QR Code: ${point.qr}`);
+        // 建立新巡邏點
+        batch.set(ref, {
+          ...point,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log(`✅ 建立巡邏點: ${point.name} (${point.id}) - GPS: ${point.lat}, ${point.lng}`);
       }
-    } catch (error) {
-      console.error(`❌ ${point.name} 處理失敗:`, error);
     }
-  }
 
-  console.log('');
-  console.log('🎉 巡邏點初始化完成！');
-  console.log('');
-  console.log('📋 巡邏點列表：');
-  patrolPoints.forEach((point) => {
-    console.log(`   • ${point.name}: ${point.qr}`);
-  });
+    await batch.commit();
+    console.log("✅ 巡邏點初始化完成！");
+    console.log("\n⚠️  請注意：GPS 座標為示例值，請更新為實際座標！");
+  } catch (error) {
+    console.error("❌ 初始化失敗:", error);
+    process.exit(1);
+  }
 }
 
 initPatrolPoints()
   .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('❌ 初始化失敗:', error);
+  .catch((err) => {
+    console.error(err);
     process.exit(1);
   });

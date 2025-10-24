@@ -1,108 +1,144 @@
-import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/admin';
-import type { Checkin } from '@/types';
+import { NextRequest, NextResponse } from "next/server";
+import { checkinAdminDb } from "@/lib/admin-checkin";
+import { verifyAuth, checkCheckinPermission, verifyGpsLocation } from "@/lib/auth-helpers";
+import { CheckinRequest } from "@/types";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { idToken, qrCode } = await req.json();
+    const body: CheckinRequest = await req.json();
+    const { idToken, qrCode, userLat, userLng } = body;
 
-    // 驗證必要參數
-    if (!idToken) {
-      return NextResponse.json({ error: '未登入' }, { status: 401 });
+    // 1. 驗證使用者身份
+    const { uid, userData } = await verifyAuth(idToken);
+
+    // 2. 檢查簽到權限
+    const hasGps = userLat !== undefined && userLng !== undefined;
+    const permission = checkCheckinPermission(userData, hasGps);
+
+    if (!permission.allowed) {
+      return NextResponse.json(
+        { error: permission.reason },
+        { status: 403 }
+      );
     }
 
-    if (!qrCode) {
-      return NextResponse.json({ error: '缺少 QR Code' }, { status: 400 });
-    }
-
-    // 驗證 Firebase ID Token
-    const decoded = await adminAuth.verifyIdToken(idToken);
-    const uid = decoded.uid;
-
-    // 驗證 QR Code 是否對應有效的巡邏點
-    const pointsSnapshot = await adminDb
-      .collection('points')
-      .where('qr', '==', qrCode)
-      .where('active', '==', true)
-      .limit(1)
+    // 3. 查詢巡邏點
+    const db = checkinAdminDb();
+    const pointsSnapshot = await db
+      .collection("points")
+      .where("qr", "==", qrCode)
+      .where("active", "==", true)
       .get();
 
     if (pointsSnapshot.empty) {
-      return NextResponse.json({ 
-        error: '無效的 QR Code' 
-      }, { status: 400 });
+      return NextResponse.json(
+        { error: "無效的 QR Code 或巡邏點未啟用" },
+        { status: 400 }
+      );
     }
 
     const patrolDoc = pointsSnapshot.docs[0];
+    const patrolData = patrolDoc.data();
     const patrolId = patrolDoc.id;
-    const patrolName = patrolDoc.data().name;
 
-    // 檢查是否重複簽到（5分鐘內同一個巡邏點）
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const recentCheckinSnapshot = await adminDb
-      .collection('checkins')
-      .where('uid', '==', uid)
-      .where('patrolId', '==', patrolId)
-      .where('ts', '>', fiveMinutesAgo)
-      .limit(1)
-      .get();
+    // 4. GPS 驗證（user 角色必須驗證）
+    let gpsVerified = false;
+    let distance: number | undefined;
 
-    if (!recentCheckinSnapshot.empty) {
-      return NextResponse.json({
-        error: '您剛才已經在此巡邏點簽到過了',
-        duplicateCheckin: true,
-      }, { status: 400 });
+    if (permission.role === "user") {
+      // user 必須提供 GPS 並驗證
+      if (!userLat || !userLng) {
+        return NextResponse.json(
+          { error: "user 角色必須提供 GPS 位置" },
+          { status: 400 }
+        );
+      }
+
+      const gpsCheck = verifyGpsLocation(
+        { lat: userLat, lng: userLng },
+        { lat: patrolData.lat, lng: patrolData.lng },
+        patrolData.tolerance
+      );
+
+      if (!gpsCheck.valid) {
+        return NextResponse.json(
+          { 
+            error: `GPS 位置不在範圍內（距離 ${gpsCheck.distance} 公尺，需在 ${patrolData.tolerance} 公尺內）`,
+            distance: gpsCheck.distance,
+            tolerance: patrolData.tolerance
+          },
+          { status: 400 }
+        );
+      }
+
+      gpsVerified = true;
+      distance = gpsCheck.distance;
+    } else {
+      // poweruser/admin/superadmin 免 GPS 驗證
+      gpsVerified = false;
+      if (userLat && userLng) {
+        // 如果有提供 GPS，仍然記錄距離（但不驗證）
+        const gpsCheck = verifyGpsLocation(
+          { lat: userLat, lng: userLng },
+          { lat: patrolData.lat, lng: patrolData.lng },
+          patrolData.tolerance
+        );
+        distance = gpsCheck.distance;
+      }
     }
 
-    // 取得用戶資訊和 metadata
-    const userAgent = req.headers.get('user-agent') || undefined;
-    const forwarded = req.headers.get('x-forwarded-for');
-    const ip = forwarded ? forwarded.split(',')[0] : req.headers.get('x-real-ip') || undefined;
+    // 5. 檢查重複簽到（5 分鐘內）
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentCheckinsSnapshot = await db
+      .collection("checkins")
+      .where("uid", "==", uid)
+      .where("patrolId", "==", patrolId)
+      .where("ts", ">=", fiveMinutesAgo)
+      .get();
 
-    // 建立簽到記錄
-    const checkinData: Omit<Checkin, 'id'> = {
+    if (!recentCheckinsSnapshot.empty) {
+      return NextResponse.json(
+        { error: "5 分鐘內已經在此巡邏點簽到過" },
+        { status: 400 }
+      );
+    }
+
+    // 6. 建立簽到記錄
+    const checkinRef = db.collection("checkins").doc();
+    const checkinData = {
+      id: checkinRef.id,
       uid,
       patrolId,
-      ts: Date.now(),
+      patrolName: patrolData.name,
+      userLat: userLat || null,
+      userLng: userLng || null,
+      distance: distance || null,
+      gpsVerified,
+      ts: new Date(),
       meta: {
-        ua: userAgent,
-        ip,
+        ua: req.headers.get("user-agent") || undefined,
+        ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
+        role: permission.role,
       },
     };
 
-    const checkinRef = await adminDb.collection('checkins').add(checkinData);
+    await checkinRef.set(checkinData);
 
-    // 返回成功訊息
     return NextResponse.json({
-      ok: true,
-      message: '簽到成功',
+      success: true,
       checkin: {
         id: checkinRef.id,
-        patrolName,
-        timestamp: checkinData.ts,
+        patrolName: patrolData.name,
+        timestamp: checkinData.ts.toISOString(),
+        gpsVerified,
+        distance,
+        role: permission.role,
       },
     });
-
-  } catch (err: any) {
-    console.error('[checkin/create] Error:', err?.message);
-    
-    // 處理特定錯誤
-    if (err?.code === 'auth/id-token-expired') {
-      return NextResponse.json(
-        { error: '登入已過期，請重新登入' },
-        { status: 401 }
-      );
-    }
-
-    if (err?.code === 'auth/argument-error') {
-      return NextResponse.json(
-        { error: '登入資訊無效' },
-        { status: 401 }
-      );
-    }
-    
+  } catch (error: any) {
+    console.error("[checkin/create] ERROR:", error);
     return NextResponse.json(
-      { error: '簽到失敗，請稍後再試' },
+      { error: error.message || "簽到失敗" },
       { status: 500 }
     );
   }
