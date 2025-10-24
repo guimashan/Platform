@@ -1,7 +1,1 @@
-{
-  "/page": "app/page.js",
-  "/admin/login/page": "app/admin/login/page.js",
-  "/checkin/page": "app/checkin/page.js",
-  "/api/ping-admin/route": "app/api/ping-admin/route.js",
-  "/api/checkin/points/route": "app/api/checkin/points/route.js"
-}
+{}
