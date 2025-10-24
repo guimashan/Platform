@@ -9,7 +9,7 @@ The 龜馬山整合服務平台 (goLine Platform) is a comprehensive service pla
 - 簡潔清晰的 UI/UX
 
 ### System Architecture
-The platform utilizes a four-layer Firebase architecture (`platform-bc783` for unified authentication, and three business layers: `checkin-76c77` for check-ins, `schedule-48ff9` for scheduling, `service-b9d4a` for divine services) to ensure robust security and data separation.
+The platform is designed with a four-layer Firebase architecture. Currently implemented: `platform-bc783` (authentication layer) and `checkin-76c77` (check-in business layer). Planned for future: `schedule-48ff9` (scheduling) and `service-b9d4a` (divine services).
 
 **Core Features:**
 1.  **LINE Login**: User authentication via LINE LIFF SDK.
@@ -23,11 +23,11 @@ The platform utilizes a four-layer Firebase architecture (`platform-bc783` for u
 -   **SuperAdmin Mechanism**: The first registered user automatically becomes a SuperAdmin with full administrative privileges across check-in, schedule, and service systems.
 
 **System Design Choices:**
--   **Four-layer Firebase Architecture**: 
-    - `platform-bc783` (Authentication Layer): Unified authentication (LINE + Email/Password)
-    - `checkin-76c77` (Check-in Business Layer): Check-in records, patrol points
-    - `schedule-48ff9` (Schedule Business Layer): Volunteer schedules, shift management
-    - `service-b9d4a` (神服 Business Layer): Service applications, inquiries
+-   **Multi-layer Firebase Architecture (2/4 implemented)**: 
+    - ✅ `platform-bc783` (Authentication Layer): Unified authentication (LINE + Email/Password)
+    - ✅ `checkin-76c77` (Check-in Business Layer): Check-in records, patrol points
+    - 📋 `schedule-48ff9` (Schedule Business Layer): Planned - Volunteer schedules, shift management
+    - 📋 `service-b9d4a` (神服 Business Layer): Planned - Service applications, inquiries
 -   **Login Flow**: For administrators, the initial login is via LINE, followed by password setup for subsequent Email logins.
 -   **Data Separation**: User data resides in the `platform` project, while business-specific data is in respective business layer projects.
 -   **Hybrid Management Interface**: Includes a central administration panel (`/admin`) for SuperAdmins and specific management interfaces (e.g., `/checkin/manage`) for role-based access.
@@ -45,11 +45,12 @@ The platform utilizes a four-layer Firebase architecture (`platform-bc783` for u
 
 ## Recent Updates
 
-### 2025-10-24 19:00 - 四層 Firebase 架構配置完成
-- ✅ 確認四層架構：platform-bc783 (認證) + checkin-76c77 (奉香) + schedule-48ff9 (排班) + service-b9d4a (神服)
-- ✅ 取得所有 Firebase 配置資料
-- 📋 待設定：排班系統和神服系統的環境變數（共 12 個）
-- 🚀 正在進行 Autoscale 部署
+### 2025-10-24 19:30 - 雙層架構完成，準備上傳倉庫
+- ✅ 已實現雙層架構：platform-bc783 (認證) + checkin-76c77 (奉香簽到)
+- ✅ 核心功能完整：LINE/Email 登入、巡邏點管理、權限控制
+- 📋 已規劃但未實現：schedule-48ff9 (排班) + service-b9d4a (神服)
+- 🧹 代碼清理完成：移除 .next/ 建置文件
+- 📦 準備上傳到 Git 倉庫
 
 ### 2025-10-24 17:45 - 巡邏點管理功能
 - ✅ 建立網頁管理介面（`/checkin/manage/points`）
