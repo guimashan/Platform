@@ -77,31 +77,37 @@ export default function CheckinPage() {
   };
 
 
-  // 獲取 GPS 位置
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setGpsError("您的裝置不支援 GPS 定位");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setGpsError(null);
-      },
-      (error) => {
-        console.error("GPS 錯誤:", error);
-        setGpsError(`GPS 定位失敗: ${error.message}`);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+  // 獲取 GPS 位置（Promise 版本）
+  const requestLocation = (): Promise<{ lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("您的裝置不支援 GPS 定位"));
+        return;
       }
-    );
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(location);
+          setGpsError(null);
+          resolve(location);
+        },
+        (error) => {
+          console.error("GPS 錯誤:", error);
+          const errorMsg = `GPS 定位失敗: ${error.message}`;
+          setGpsError(errorMsg);
+          reject(new Error(errorMsg));
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    });
   };
 
   // 處理簽到
@@ -111,12 +117,18 @@ export default function CheckinPage() {
       return;
     }
 
-    // 嘗試獲取 GPS 位置（非強制，由後端決定是否需要）
-    if (!userLocation && navigator.geolocation) {
-      requestLocation();
-    }
-
     setCheckinStatus("loading");
+
+    // 🔑 關鍵修正：等待 GPS 獲取完成
+    let locationData = userLocation;
+    if (!locationData && navigator.geolocation) {
+      try {
+        locationData = await requestLocation();
+      } catch (error: any) {
+        console.error("GPS 獲取失敗:", error);
+        // 繼續簽到（讓後端決定是否需要 GPS）
+      }
+    }
 
     try {
       // 🔑 獲取最新的 Firebase ID Token（處理過期情況）
@@ -134,8 +146,8 @@ export default function CheckinPage() {
         body: JSON.stringify({
           idToken: freshIdToken,
           qrCode: qrInput.trim(),
-          userLat: userLocation?.lat,
-          userLng: userLocation?.lng,
+          userLat: locationData?.lat,
+          userLng: locationData?.lng,
         }),
       });
 
