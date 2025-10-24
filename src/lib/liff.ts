@@ -35,4 +35,11 @@ export const getLiffProfile = async () => {
   return liff.getProfile();
 };
 
+export const getDecodedIdToken = () => {
+  if (!liff.isLoggedIn()) {
+    return null;
+  }
+  return liff.getDecodedIDToken();
+};
+
 export { liff };
