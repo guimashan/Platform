@@ -22,18 +22,20 @@ export async function GET(req: NextRequest) {
     const system = searchParams.get("system");
 
     if (!isSuperAdmin) {
-      if (system && system !== "checkin") {
+      if (system) {
+        const roleField = `${system}_role` as "checkin_role" | "schedule_role" | "service_role";
+        const isSystemAdmin = userData[roleField] === "admin";
+        
+        if (!isSystemAdmin) {
+          return NextResponse.json(
+            { error: `需要 ${system} admin 或 SuperAdmin 權限` },
+            { status: 403 }
+          );
+        }
+      } else {
         return NextResponse.json(
-          { error: "只有 SuperAdmin 可以查詢其他系統的使用者" },
-          { status: 403 }
-        );
-      }
-
-      const isCheckinAdmin = userData.checkin_role === "admin";
-      if (!isCheckinAdmin) {
-        return NextResponse.json(
-          { error: "需要 checkin admin 或 SuperAdmin 權限" },
-          { status: 403 }
+          { error: "需要指定 system 參數" },
+          { status: 400 }
         );
       }
     }
@@ -57,14 +59,8 @@ export async function GET(req: NextRequest) {
     }));
 
     if (system) {
-      const filteredUsers = usersWithStats.filter((user) => {
-        if (system === "checkin") return user.checkin_role !== "user" || user.isSuperAdmin;
-        if (system === "schedule") return user.schedule_role !== "user" || user.isSuperAdmin;
-        if (system === "service") return user.service_role !== "user" || user.isSuperAdmin;
-        return true;
-      });
-      filteredUsers.sort((a, b) => b.checkinCount - a.checkinCount);
-      return NextResponse.json({ users: filteredUsers });
+      usersWithStats.sort((a, b) => b.checkinCount - a.checkinCount);
+      return NextResponse.json({ users: usersWithStats });
     }
 
     usersWithStats.sort((a, b) => b.checkinCount - a.checkinCount);

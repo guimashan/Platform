@@ -89,6 +89,32 @@ export default function AdminPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {permissions?.isSuperAdmin && (
+            <Card 
+              className="cursor-pointer hover-elevate active-elevate-2 transition-shadow border-2 border-purple-200"
+              onClick={() => router.push("/admin/users")}
+              data-testid="card-super-admin"
+            >
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4">
+                  <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <CardTitle className="flex items-center gap-2">
+                  總管理中心
+                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">SuperAdmin</span>
+                </CardTitle>
+                <CardDescription>
+                  管理所有系統的使用者角色（奉香、排班、神務）
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button variant="outline" className="w-full" data-testid="button-enter-super-admin">
+                  進入總管理
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {hasCheckinAccess && (
             <Card 
               className="cursor-pointer hover-elevate active-elevate-2 transition-shadow"

@@ -355,6 +355,51 @@ export default function CheckinManagePage() {
           </Card>
         </div>
 
+        {/* 快速導航 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/users")}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <Users className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">人員管理</h3>
+                  <p className="text-sm text-gray-500">管理簽到系統使用者角色</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/points")}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <MapPin className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">巡邏點管理</h3>
+                  <p className="text-sm text-gray-500">管理 GPS 座標與 QR Code</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/records")}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <Activity className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">簽到記錄</h3>
+                  <p className="text-sm text-gray-500">查看完整簽到記錄</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* 最近簽到記錄 */}
         <Card>
           <CardHeader>
