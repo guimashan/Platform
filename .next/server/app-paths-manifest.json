@@ -1,5 +1,1 @@
-{
-  "/api/ping-admin/route": "app/api/ping-admin/route.js",
-  "/api/checkin/points/route": "app/api/checkin/points/route.js",
-  "/api/ping-bot/route": "app/api/ping-bot/route.js"
-}
+{}
