@@ -11,10 +11,15 @@ export interface UserDoc {
   email?: string;
   hasPassword?: boolean;
   
-  // 角色系統（改為單一角色）
-  role: UserRole;
+  // 平台層角色（保留舊欄位以便向後相容）
+  role?: UserRole;
   
-  // 系統管理權限（未來擴充用）
+  // 業務層角色（新架構）
+  checkin_role?: UserRole;
+  schedule_role?: UserRole;
+  service_role?: UserRole;
+  
+  // 系統管理權限（舊欄位，保留向後相容）
   roles?: {
     checkin_admin?: boolean;
     schedule_admin?: boolean;
