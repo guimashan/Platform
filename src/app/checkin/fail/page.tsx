@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 
+export const dynamic = 'force-dynamic';
+
 export default function CheckinFailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
