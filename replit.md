@@ -3,35 +3,41 @@
 ## 專案概述
 這是一個整合 LINE LIFF 和 Firebase 的服務平台，專為龜馬山社群打造，提供登入、簽到、服務申請和排班管理等功能。
 
-## 系統架構圖
+## 系統架構圖（雙層 Firebase）
 ```
 使用者（工作人員/志工）
-   ↓ 📱 掃描巡邏點 QR Code
+   ↓ 📱 掃描巡邏點 QR Code / 💻 電腦登入管理後台
    ↓
-https://go.guimashan.org.tw/checkin
-   ↓ 🔐 LINE 登入 (LIFF)
+https://go.guimashan.org.tw
+   ↓ 🔐 雙登入方式
+   ├─ LINE LIFF（手機）
+   └─ Email + Password（電腦）
    ↓
 平台後端 (Next.js @ Vercel)
-   ├─ /api/checkin/create    ← 打卡上傳
-   ├─ /api/ping-bot          ← LINE Bot 健康檢查
-   ├─ /api/ping-admin        ← Firebase Admin 健康檢查
-   └─ /api/webhook           ← LINE 關鍵字自動回覆
-   ↓
-📊 Firestore 專案：checkin-76c77
-   ├─ checkins/    打卡紀錄
-   ├─ points/      巡邏點（玉旨牌/萬應公/辦公室）
-   └─ users/       使用者資料（含 SuperAdmin 標記）
+   ├─ 認證層：platform-bc783
+   │   ├─ LINE Custom Token 認證
+   │   ├─ Email/Password 認證  
+   │   └─ users/ 使用者資料（含權限、SuperAdmin）
+   │
+   └─ 業務層：checkin-76c77
+       ├─ checkins/ 打卡紀錄
+       └─ points/ 巡邏點資料
 
-💻 管理後台
-   /checkin/manage
-   └─ 用 Email + Password（Firebase Auth Admin）
-      不需要 LINE 登入
+💻 管理中心
+   /admin (統一管理中心)
+   ├─ 第一次登入：LINE 登入 → 設定密碼
+   └─ 之後登入：Email + 密碼直接登入
+   
+   /checkin/manage (奉香簽到管理)
+   └─ 圖表、記錄、人員、巡邏點管理
 ```
 
 ### ⚠️ 重要筆記
-- **後端連接專案**：`checkin-76c77`（不是 `platform-bc783`）
-- **未來報表/管理**：都要從 `checkin-76c77` 讀取
-- **管理後台**：電腦用，Email/Password 登入
+- **雙層 Firebase 架構**：
+  - `platform-bc783`：統一認證層（LINE + Email/Password）
+  - `checkin-76c77`：業務數據層（簽到記錄、巡邏點）
+- **登入流程**：管理者第一次用電腦 → LINE 登入 → 設定密碼 → 之後用 Email 登入
+- **數據分層**：使用者資料在 platform，業務數據在 checkin
 - **Next.js 專案代號**：`platform`（≠ Firestore 專案名稱）
 
 ## 核心功能
@@ -79,9 +85,15 @@ src/
   types/
     index.ts                    # TypeScript 型別定義
   lib/
-    firebase.ts                 # Firebase 客戶端配置
-    admin.ts                    # Firebase Admin 配置
+    firebase-platform.ts        # Platform Firebase 客戶端
+    firebase-checkin.ts         # Checkin Firebase 客戶端
+    admin-platform.ts           # Platform Firebase Admin
+    admin-checkin.ts            # Checkin Firebase Admin
+    auth-helpers.ts             # 認證輔助函數（驗證權限）
+    firebase.ts                 # 舊版 Firebase 配置（已棄用）
+    admin.ts                    # 舊版 Firebase Admin（已棄用）
     liff.ts                     # LINE LIFF 工具函數
+    verifyLine.ts               # LINE Token 驗證
 scripts/
   init-patrol-points.ts         # 初始化巡邏點腳本
   m8_auto_tasks.sh              # M8 自動化任務腳本
@@ -95,15 +107,27 @@ tsconfig.json        # TypeScript 配置
 ```
 
 ## 環境變數
-### Firebase (Client) - 需加 NEXT_PUBLIC_ 前綴
+### Platform Firebase (platform-bc783) - 認證層
+**Client (需加 NEXT_PUBLIC_ 前綴):**
+- NEXT_PUBLIC_PLATFORM_FIREBASE_API_KEY
+- NEXT_PUBLIC_PLATFORM_FIREBASE_AUTH_DOMAIN
+- NEXT_PUBLIC_PLATFORM_FIREBASE_PROJECT_ID
+- NEXT_PUBLIC_PLATFORM_FIREBASE_MESSAGING_SENDER_ID
+- NEXT_PUBLIC_PLATFORM_FIREBASE_APP_ID
+
+**Server:**
+- PLATFORM_SERVICE_ACCOUNT_JSON
+
+### Checkin Firebase (checkin-76c77) - 業務層
+**Client:**
 - NEXT_PUBLIC_FIREBASE_API_KEY
 - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
 - NEXT_PUBLIC_FIREBASE_PROJECT_ID
 - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
 - NEXT_PUBLIC_FIREBASE_APP_ID
 
-### Firebase (Server)
-- FIREBASE_SERVICE_ACCOUNT_JSON（⚠️ 必須使用 checkin-76c77 專案）
+**Server:**
+- FIREBASE_SERVICE_ACCOUNT_JSON
 
 ### LINE LIFF
 - LINE_CHANNEL_ID
@@ -184,6 +208,16 @@ tsconfig.json        # TypeScript 配置
 4. 觸發 Vercel 自動部署
 
 ## 最近更改
+- **2025-10-24 15:30**: ✅ 完成雙層 Firebase 架構實現
+  - 實作 platform-bc783（認證層）+ checkin-76c77（業務層）雙層架構
+  - 建立 /admin 統一管理中心
+  - 實作管理者帳號設定流程：LINE 登入 → 設定密碼 → Email 登入
+  - 建立 /admin/setup 密碼設定頁面
+  - 修改所有管理 API 使用 platform-bc783 認證
+  - 建立 auth-helpers.ts 統一權限驗證
+  - 修正 setup-password API 的 email 更新問題（Architect 審查發現）
+  - 通過 Architect 審查，系統已可投入測試
+- **2025-10-24 12:25**: ✅ 更新 QR Code 格式
 - **2025-10-24 12:25**: ✅ 更新 QR Code 格式
   - 移除年份後綴（PATROL_YUJI_2025 → PATROL_YUJI）
   - 更新 Firestore 資料庫（checkin-76c77）
