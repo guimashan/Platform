@@ -70,12 +70,6 @@ export default function HomePage() {
             </Button>
           </Link>
         </div>
-
-        {/* 底部網址 */}
-        <div className="text-center mt-12 space-y-1">
-          <p className="text-lg font-medium text-gray-700">go.guimashan.org.tw</p>
-          <p className="text-sm text-gray-500">網站首頁</p>
-        </div>
       </div>
     </main>
   );
