@@ -1,216 +1,370 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken, getLiffProfile } from "@/lib/liff";
+import { authClient } from "@/lib/firebase";
+import { signInWithCustomToken } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Spinner from "@/components/ui/spinner";
-import ErrorAlert from "@/components/ui/error-alert";
-import EmptyState from "@/components/ui/empty-state";
-import { CheckCircle, ArrowLeft } from "lucide-react";
-import type { CheckIn, InsertCheckIn } from "@/shared/schema";
+import { QrCode, Clock, CheckCircle, AlertCircle, User } from "lucide-react";
+
+interface CheckinHistory {
+  id: string;
+  patrolId: string;
+  patrolName: string;
+  ts: number;
+}
 
 export default function CheckinPage() {
-  const router = useRouter();
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<InsertCheckIn>({
-    userId: "",
-    userName: "",
-    type: "visitor",
-    location: "龜馬山",
-  });
+  const [liffReady, setLiffReady] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  
+  const [qrInput, setQrInput] = useState("");
+  const [checkinStatus, setCheckinStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [statusMessage, setStatusMessage] = useState("");
+  
+  const [history, setHistory] = useState<CheckinHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const { data: checkins, isLoading, error } = useQuery<CheckIn[]>({
-    queryKey: ["/api/checkins"],
-  });
+  // 初始化 LIFF
+  useEffect(() => {
+    const setupLiff = async () => {
+      try {
+        await initLiff();
+        setLiffReady(true);
+        
+        if (isLiffLoggedIn()) {
+          setLoggedIn(true);
+          const userProfile = await getLiffProfile();
+          const lineIdToken = await getLiffIdToken();
+          
+          setProfile(userProfile);
+          
+          // 使用 LINE ID Token 登入 Firebase 並獲取 Firebase ID Token
+          if (lineIdToken) {
+            const firebaseIdToken = await authenticateWithFirebase(lineIdToken);
+            await loadCheckinHistory(firebaseIdToken);
+          }
+        }
+      } catch (error) {
+        console.error("LIFF 初始化失敗:", error);
+      }
+    };
 
-  const createCheckin = useMutation({
-    mutationFn: (data: InsertCheckIn) =>
-      apiRequest<CheckIn>("POST", "/api/checkins", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/checkins"] });
-      setShowForm(false);
-      setFormData({
-        userId: "",
-        userName: "",
-        type: "visitor",
-        location: "龜馬山",
+    setupLiff();
+  }, []);
+
+  // 使用 LINE ID Token 登入 Firebase
+  const authenticateWithFirebase = async (lineIdToken: string) => {
+    try {
+      const response = await fetch("/api/auth/line", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: lineIdToken }),
       });
-    },
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.userName.trim()) return;
-    createCheckin.mutate(formData);
+      if (!response.ok) {
+        throw new Error("Firebase 認證失敗");
+      }
+
+      const { customToken } = await response.json();
+      const userCredential = await signInWithCustomToken(authClient, customToken);
+      
+      // 🔑 關鍵修正：獲取 Firebase ID Token（而非 LINE LIFF Token）
+      const firebaseIdToken = await userCredential.user.getIdToken();
+      setIdToken(firebaseIdToken);
+      
+      return firebaseIdToken;
+    } catch (error) {
+      console.error("Firebase 認證錯誤:", error);
+      throw error;
+    }
   };
 
+  // 載入簽到歷史
+  const loadCheckinHistory = async (token: string) => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/checkin/history?idToken=${encodeURIComponent(token)}&limit=20`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.history || []);
+      }
+    } catch (error) {
+      console.error("載入簽到歷史失敗:", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // 處理簽到
+  const handleCheckin = async () => {
+    if (!qrInput.trim()) {
+      setStatusMessage("請輸入 QR Code");
+      setCheckinStatus("error");
+      return;
+    }
+
+    setCheckinStatus("loading");
+    setStatusMessage("簽到中...");
+
+    try {
+      // 🔑 獲取最新的 Firebase ID Token（處理過期情況）
+      const currentUser = authClient.currentUser;
+      if (!currentUser) {
+        setStatusMessage("請重新登入");
+        setCheckinStatus("error");
+        setLoggedIn(false);
+        return;
+      }
+      
+      const freshIdToken = await currentUser.getIdToken(true);
+      
+      const response = await fetch("/api/checkin/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idToken: freshIdToken,
+          qrCode: qrInput.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setCheckinStatus("success");
+        setStatusMessage(`✅ 簽到成功！地點：${data.checkin.patrolName}`);
+        setQrInput("");
+        
+        // 重新載入歷史記錄
+        const currentUser = authClient.currentUser;
+        if (currentUser) {
+          const freshIdToken = await currentUser.getIdToken();
+          await loadCheckinHistory(freshIdToken);
+        }
+        
+        // 3秒後重置狀態
+        setTimeout(() => {
+          setCheckinStatus("idle");
+          setStatusMessage("");
+        }, 3000);
+      } else {
+        setCheckinStatus("error");
+        setStatusMessage(data.error || "簽到失敗");
+        
+        // 5秒後重置狀態
+        setTimeout(() => {
+          setCheckinStatus("idle");
+          setStatusMessage("");
+        }, 5000);
+      }
+    } catch (error) {
+      console.error("簽到錯誤:", error);
+      setCheckinStatus("error");
+      setStatusMessage("網路錯誤，請稍後再試");
+      
+      setTimeout(() => {
+        setCheckinStatus("idle");
+        setStatusMessage("");
+      }, 5000);
+    }
+  };
+
+  // 處理 LINE 登入
+  const handleLogin = () => {
+    if (liffReady) {
+      liffLogin();
+    }
+  };
+
+  // LIFF 尚未準備好
+  if (!liffReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">載入中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 未登入狀態
+  if (!loggedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50 px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">龜馬山奉香簽到系統</CardTitle>
+            <CardDescription>請使用 LINE 帳號登入</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
+              <QrCode className="w-10 h-10 text-orange-600" />
+            </div>
+            <Button
+              onClick={handleLogin}
+              className="w-full bg-green-500 hover:bg-green-600 text-white"
+              size="lg"
+              data-testid="button-line-login"
+            >
+              使用 LINE 登入
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // 已登入狀態 - 主介面
   return (
-    <main className="min-h-screen py-10 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/")}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold" data-testid="text-page-title">奉香簽到系統</h1>
-            <p className="text-sm text-muted-foreground">志工與信眾快速簽到</p>
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {profile?.pictureUrl && (
+              <img
+                src={profile.pictureUrl}
+                alt="Profile"
+                className="w-10 h-10 rounded-full"
+                data-testid="img-profile"
+              />
+            )}
+            {!profile?.pictureUrl && (
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="w-6 h-6 text-gray-500" />
+              </div>
+            )}
+            <div>
+              <p className="font-medium text-sm" data-testid="text-display-name">
+                {profile?.displayName || "使用者"}
+              </p>
+              <p className="text-xs text-gray-500">龜馬山奉香簽到</p>
+            </div>
           </div>
         </div>
+      </header>
 
-        {!showForm ? (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>簽到記錄</CardTitle>
-                  <CardDescription>查看最近的簽到紀錄</CardDescription>
-                </div>
-                <Button
-                  onClick={() => setShowForm(true)}
-                  data-testid="button-show-form"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  我要簽到
-                </Button>
+      <main className="max-w-md mx-auto px-4 py-6 space-y-6">
+        {/* QR Code 簽到區 */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-orange-600" />
+              掃描 QR Code 簽到
+            </CardTitle>
+            <CardDescription>請掃描巡邏點的 QR Code 或手動輸入</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              value={qrInput}
+              onChange={(e) => setQrInput(e.target.value)}
+              placeholder="輸入 QR Code（例如：PATROL_YUJI_2025）"
+              disabled={checkinStatus === "loading"}
+              data-testid="input-qr-code"
+            />
+            
+            <Button
+              onClick={handleCheckin}
+              className="w-full bg-orange-600 hover:bg-orange-700"
+              size="lg"
+              disabled={checkinStatus === "loading" || !qrInput.trim()}
+              data-testid="button-checkin"
+            >
+              {checkinStatus === "loading" ? "簽到中..." : "確認簽到"}
+            </Button>
+
+            {/* 狀態訊息 */}
+            {statusMessage && (
+              <div
+                className={`flex items-center gap-2 p-3 rounded-lg ${
+                  checkinStatus === "success"
+                    ? "bg-green-50 text-green-700"
+                    : checkinStatus === "error"
+                    ? "bg-red-50 text-red-700"
+                    : "bg-blue-50 text-blue-700"
+                }`}
+                data-testid="text-status-message"
+              >
+                {checkinStatus === "success" && <CheckCircle className="w-5 h-5" />}
+                {checkinStatus === "error" && <AlertCircle className="w-5 h-5" />}
+                <span className="text-sm">{statusMessage}</span>
               </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading && <Spinner label="載入中..." />}
-              {error && <ErrorAlert message="載入簽到記錄失敗" />}
-              
-              {!isLoading && !error && checkins && checkins.length === 0 && (
-                <EmptyState
-                  title="目前沒有簽到資料"
-                  hint="點擊「我要簽到」按鈕開始記錄"
-                />
-              )}
+            )}
+          </CardContent>
+        </Card>
 
-              {!isLoading && !error && checkins && checkins.length > 0 && (
-                <div className="space-y-3">
-                  {checkins.map((checkin) => (
-                    <div
-                      key={checkin.id}
-                      className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
-                      data-testid={`checkin-item-${checkin.id}`}
-                    >
-                      <div>
-                        <p className="font-medium" data-testid={`checkin-name-${checkin.id}`}>
-                          {checkin.userName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {checkin.location} · {new Date(checkin.timestamp).toLocaleString("zh-TW")}
-                        </p>
-                      </div>
-                      <div className="text-sm text-muted-foreground capitalize">
-                        {checkin.type === "volunteer" && "志工"}
-                        {checkin.type === "visitor" && "訪客"}
-                        {checkin.type === "member" && "會員"}
-                      </div>
+        {/* 簽到歷史 */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-orange-600" />
+              簽到歷史
+            </CardTitle>
+            <CardDescription>最近 20 筆簽到記錄</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingHistory && (
+              <div className="text-center py-8 text-gray-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-2"></div>
+                載入中...
+              </div>
+            )}
+
+            {!loadingHistory && history.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <p className="text-sm">尚無簽到記錄</p>
+                <p className="text-xs mt-1">掃描 QR Code 開始簽到</p>
+              </div>
+            )}
+
+            {!loadingHistory && history.length > 0 && (
+              <div className="space-y-2">
+                {history.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-white hover-elevate"
+                    data-testid={`history-item-${item.id}`}
+                  >
+                    <div>
+                      <p className="font-medium text-sm" data-testid={`history-patrol-${item.id}`}>
+                        {item.patrolName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(item.ts).toLocaleString("zh-TW", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>簽到表單</CardTitle>
-              <CardDescription>請填寫您的資訊進行簽到</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="userName">姓名 *</Label>
-                  <Input
-                    id="userName"
-                    value={formData.userName}
-                    onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                    placeholder="請輸入您的姓名"
-                    required
-                    data-testid="input-username"
-                  />
-                </div>
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="type">身份類別</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: any) => setFormData({ ...formData, type: value })}
-                  >
-                    <SelectTrigger data-testid="select-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="visitor">訪客</SelectItem>
-                      <SelectItem value="member">會員</SelectItem>
-                      <SelectItem value="volunteer">志工</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">地點</Label>
-                  <Input
-                    id="location"
-                    value={formData.location || ""}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="簽到地點"
-                    data-testid="input-location"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notes">備註</Label>
-                  <Input
-                    id="notes"
-                    value={formData.notes || ""}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="其他備註（選填）"
-                    data-testid="input-notes"
-                  />
-                </div>
-
-                {createCheckin.error && (
-                  <ErrorAlert message="簽到失敗，請稍後再試" />
-                )}
-
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowForm(false)}
-                    disabled={createCheckin.isPending}
-                    data-testid="button-cancel"
-                  >
-                    取消
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1"
-                    disabled={createCheckin.isPending || !formData.userName.trim()}
-                    data-testid="button-submit-checkin"
-                  >
-                    {createCheckin.isPending ? "處理中..." : "確認簽到"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </main>
+        {/* 快速參考 */}
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="pt-6">
+            <p className="text-sm text-amber-900 font-medium mb-2">📍 巡邏點 QR Code 參考：</p>
+            <ul className="text-xs text-amber-800 space-y-1">
+              <li>• 玉旨牌：PATROL_YUJI_2025</li>
+              <li>• 萬應公：PATROL_WANYING_2025</li>
+              <li>• 辦公室：PATROL_OFFICE_2025</li>
+            </ul>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
   );
 }
