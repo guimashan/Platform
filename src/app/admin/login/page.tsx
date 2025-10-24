@@ -19,6 +19,12 @@ export default function AdminLoginPage() {
   const [error, setError] = useState("");
   const [liffReady, setLiffReady] = useState(false);
   const [loginMethod, setLoginMethod] = useState<"email" | "line">("email");
+  
+  // LINE 登入相關狀態
+  const [lineProfile, setLineProfile] = useState<any>(null);
+  const [lineIdToken, setLineIdToken] = useState<string>("");
+  const [needEmailInput, setNeedEmailInput] = useState(false);
+  const [manualEmail, setManualEmail] = useState("");
 
   useEffect(() => {
     const initLiff = async () => {
@@ -86,46 +92,78 @@ export default function AdminLoginPage() {
       const profile = await liff.getProfile();
       const email = liff.getDecodedIDToken()?.email;
 
+      // 如果沒有 email，顯示輸入框讓用戶填寫
       if (!email) {
-        setError("請先在 LINE 設定您的 Email");
+        setLineProfile(profile);
+        setLineIdToken(idToken);
+        setNeedEmailInput(true);
+        setLoading(false);
         return;
       }
 
-      const response = await fetch("/api/auth/line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          idToken,
-          email,
-          displayName: profile.displayName,
-          pictureUrl: profile.pictureUrl
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        if (data.error === "MISSING_EMAIL") {
-          setError(data.message || "請先在 LINE 設定您的 Email");
-          return;
-        }
-        throw new Error("LINE 認證失敗");
-      }
-
-      const { customToken, hasPassword } = await response.json();
-      await signInWithCustomToken(platformAuth, customToken);
-      
-      // 根據是否已設定密碼跳轉
-      if (hasPassword) {
-        router.push("/admin");
-      } else {
-        router.push("/admin/setup");
-      }
+      // 有 email，直接登入
+      await completeLineLogin(idToken, email, profile);
     } catch (err: any) {
       console.error("LINE 登入錯誤:", err);
       setError(err.message || "LINE 登入失敗，請稍後再試");
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleManualEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!manualEmail || !manualEmail.includes("@")) {
+      setError("請輸入有效的 Email 地址");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      await completeLineLogin(lineIdToken, manualEmail, lineProfile);
+    } catch (err: any) {
+      console.error("LINE 登入錯誤:", err);
+      setError(err.message || "LINE 登入失敗，請稍後再試");
+      setLoading(false);
+    }
+  };
+
+  const completeLineLogin = async (idToken: string, email: string, profile: any) => {
+    const response = await fetch("/api/auth/line", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        idToken,
+        email,
+        displayName: profile.displayName,
+        pictureUrl: profile.pictureUrl
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "LINE 認證失敗");
+    }
+
+    const { customToken, hasPassword } = await response.json();
+    await signInWithCustomToken(platformAuth, customToken);
+    
+    // 根據是否已設定密碼跳轉
+    if (hasPassword) {
+      router.push("/admin");
+    } else {
+      router.push("/admin/setup");
+    }
+  };
+
+  const cancelEmailInput = () => {
+    setNeedEmailInput(false);
+    setManualEmail("");
+    setLineProfile(null);
+    setLineIdToken("");
+    setError("");
   };
 
   return (
@@ -139,102 +177,160 @@ export default function AdminLoginPage() {
           </div>
           <CardTitle className="text-2xl">管理員登入</CardTitle>
           <CardDescription>
-            選擇登入方式訪問管理後台
+            {needEmailInput ? "請輸入您的 Email" : "選擇登入方式訪問管理後台"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2 mb-6">
-            <Button
-              type="button"
-              variant={loginMethod === "email" ? "default" : "outline"}
-              className="flex-1"
-              onClick={() => setLoginMethod("email")}
-              data-testid="button-method-email"
-            >
-              Email 登入
-            </Button>
-            <Button
-              type="button"
-              variant={loginMethod === "line" ? "default" : "outline"}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => setLoginMethod("line")}
-              data-testid="button-method-line"
-            >
-              LINE 登入
-            </Button>
-          </div>
-
-          {loginMethod === "email" ? (
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">電子郵件</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-                disabled={loading}
-                data-testid="input-email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">密碼</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                data-testid="input-password"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700" data-testid="text-error">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">{error}</span>
+          {!needEmailInput ? (
+            <>
+              <div className="flex gap-2 mb-6">
+                <Button
+                  type="button"
+                  variant={loginMethod === "email" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setLoginMethod("email")}
+                  data-testid="button-method-email"
+                >
+                  Email 登入
+                </Button>
+                <Button
+                  type="button"
+                  variant={loginMethod === "line" ? "default" : "outline"}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => setLoginMethod("line")}
+                  data-testid="button-method-line"
+                >
+                  LINE 登入
+                </Button>
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              disabled={loading}
-              data-testid="button-login-email"
-            >
-              {loading ? "登入中..." : "使用 Email 登入"}
-            </Button>
-          </form>
+              {loginMethod === "email" ? (
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">電子郵件</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      required
+                      disabled={loading}
+                      data-testid="input-email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">密碼</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      disabled={loading}
+                      data-testid="input-password"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={loading}
+                    data-testid="button-login"
+                  >
+                    {loading ? "登入中..." : "使用 Email 登入"}
+                  </Button>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <Button
+                    type="button"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handleLineLogin}
+                    disabled={loading || !liffReady}
+                    data-testid="button-line-login"
+                  >
+                    {loading ? "登入中..." : !liffReady ? "準備中..." : "使用 LINE 登入"}
+                  </Button>
+
+                  {error && (
+                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <p className="text-sm text-gray-500 text-center">
+                    點擊按鈕後將透過 LINE 進行身份驗證
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                <p className="text-sm text-gray-700 text-center">
-                  使用您的 LINE 帳號快速登入管理後台
+            <form onSubmit={handleManualEmailSubmit} className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-md border border-blue-200">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>LINE 使用者：</strong>{lineProfile?.displayName}
+                </p>
+                <p className="text-xs text-blue-600">
+                  由於 LINE 帳號未公開 Email，請手動輸入您的 Email 地址以完成註冊。
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manual-email">Email 地址</Label>
+                <Input
+                  id="manual-email"
+                  type="email"
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  placeholder="your.email@example.com"
+                  required
+                  disabled={loading}
+                  data-testid="input-manual-email"
+                />
+                <p className="text-xs text-gray-500">
+                  此 Email 將用於系統通知和後續登入
                 </p>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-700" data-testid="text-error">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="text-sm">{error}</span>
+                <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
-              <Button
-                type="button"
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={handleLineLogin}
-                disabled={loading || !liffReady}
-                data-testid="button-login-line"
-              >
-                {loading ? "登入中..." : liffReady ? "使用 LINE 登入" : "LINE 初始化中..."}
-              </Button>
-            </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={cancelEmailInput}
+                  disabled={loading}
+                  data-testid="button-cancel"
+                >
+                  取消
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={loading}
+                  data-testid="button-submit-email"
+                >
+                  {loading ? "處理中..." : "完成註冊"}
+                </Button>
+              </div>
+            </form>
           )}
         </CardContent>
       </Card>
