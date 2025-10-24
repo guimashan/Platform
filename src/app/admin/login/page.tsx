@@ -76,28 +76,53 @@ export default function AdminLoginPage() {
         return;
       }
 
-      const accessToken = liff.getAccessToken();
-      if (!accessToken) {
-        setError("無法取得 LINE 存取權杖");
+      // 取得 ID Token 和 Profile
+      const idToken = liff.getIDToken();
+      if (!idToken) {
+        setError("無法取得 LINE ID Token");
+        return;
+      }
+
+      const profile = await liff.getProfile();
+      const email = liff.getDecodedIDToken()?.email;
+
+      if (!email) {
+        setError("請先在 LINE 設定您的 Email");
         return;
       }
 
       const response = await fetch("/api/auth/line", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({ 
+          idToken,
+          email,
+          displayName: profile.displayName,
+          pictureUrl: profile.pictureUrl
+        }),
       });
 
       if (!response.ok) {
+        const data = await response.json();
+        if (data.error === "MISSING_EMAIL") {
+          setError(data.message || "請先在 LINE 設定您的 Email");
+          return;
+        }
         throw new Error("LINE 認證失敗");
       }
 
-      const { customToken } = await response.json();
+      const { customToken, hasPassword } = await response.json();
       await signInWithCustomToken(platformAuth, customToken);
-      router.push("/admin");
+      
+      // 根據是否已設定密碼跳轉
+      if (hasPassword) {
+        router.push("/admin");
+      } else {
+        router.push("/admin/setup");
+      }
     } catch (err: any) {
       console.error("LINE 登入錯誤:", err);
-      setError("LINE 登入失敗，請稍後再試");
+      setError(err.message || "LINE 登入失敗，請稍後再試");
     } finally {
       setLoading(false);
     }
