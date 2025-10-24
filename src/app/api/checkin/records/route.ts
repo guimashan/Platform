@@ -68,13 +68,22 @@ export async function GET(req: NextRequest) {
 
     const records: (Checkin & { id: string; timestamp: string; patrolName?: string; userName?: string })[] = docs.map((doc) => {
       const data = doc.data() as Checkin;
+      const timestamp = typeof data.ts === 'number' 
+        ? new Date(data.ts).toISOString()
+        : data.ts?.toDate ? data.ts.toDate().toISOString() : new Date().toISOString();
+      
       return {
         id: doc.id,
         uid: data.uid,
         patrolId: data.patrolId,
+        patrolName: data.patrolName,
         ts: data.ts,
+        gpsVerified: data.gpsVerified,
+        userLat: data.userLat,
+        userLng: data.userLng,
+        distance: data.distance,
         meta: data.meta,
-        timestamp: new Date(data.ts).toISOString(),
+        timestamp,
       };
     });
 

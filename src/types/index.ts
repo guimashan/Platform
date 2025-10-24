@@ -87,3 +87,7 @@ export interface PermissionCheck {
   reason?: string;
   role: UserRole;
 }
+
+// 類型別名（向後相容）
+export type Checkin = CheckinDoc;
+export type Patrol = PatrolDoc;

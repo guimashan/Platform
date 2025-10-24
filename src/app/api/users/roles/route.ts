@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "未授權：無效的 Token" }, { status: 401 });
     }
 
-    if (!auth.isSuperAdmin) {
+    if (!auth.userData?.isSuperAdmin) {
       return NextResponse.json({ error: "只有 SuperAdmin 可以修改權限" }, { status: 403 });
     }
 

@@ -53,9 +53,9 @@ interface PatrolPoint {
 const patrolPointSchema = z.object({
   name: z.string().min(1, "巡邏點名稱不可為空"),
   qr: z.string().min(1, "QR Code 不可為空"),
-  lat: z.coerce.number().min(-90).max(90, "緯度必須在 -90 到 90 之間"),
-  lng: z.coerce.number().min(-180).max(180, "經度必須在 -180 到 180 之間"),
-  tolerance: z.coerce.number().min(1, "容許誤差必須大於 0"),
+  lat: z.number().min(-90).max(90, "緯度必須在 -90 到 90 之間"),
+  lng: z.number().min(-180).max(180, "經度必須在 -180 到 180 之間"),
+  tolerance: z.number().min(1, "容許誤差必須大於 0"),
   active: z.boolean(),
 });
 

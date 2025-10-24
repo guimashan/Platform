@@ -44,12 +44,21 @@ export async function GET(req: NextRequest) {
 
     const checkins: CheckinWithDate[] = monthCheckinsSnapshot.docs.map((doc) => {
       const data = doc.data() as Checkin;
+      const timestamp = typeof data.ts === 'number' 
+        ? new Date(data.ts) 
+        : data.ts?.toDate ? data.ts.toDate() : new Date();
+      
       return {
         id: doc.id,
         uid: data.uid,
         patrolId: data.patrolId,
+        patrolName: data.patrolName || '',
+        gpsVerified: data.gpsVerified || false,
+        userLat: data.userLat,
+        userLng: data.userLng,
+        distance: data.distance,
         meta: data.meta,
-        ts: data.ts ? new Date(data.ts) : new Date(),
+        ts: timestamp,
       };
     });
 

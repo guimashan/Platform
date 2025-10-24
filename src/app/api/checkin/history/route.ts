@@ -32,16 +32,13 @@ export async function GET(req: Request) {
 
     // 取得所有巡邏點資料（用於對應名稱）
     const pointsSnapshot = await adminDb.collection('points').get();
-    const pointsMap = new Map<string, Patrol>();
+    const pointsMap = new Map<string, { id: string; name: string }>();
     
     pointsSnapshot.forEach((doc) => {
       const data = doc.data();
       pointsMap.set(doc.id, {
         id: doc.id,
-        name: data.name,
-        qr: data.qr,
-        active: data.active,
-        createdAt: data.createdAt,
+        name: data.name || '未知',
       });
     });
 

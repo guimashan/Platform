@@ -22,13 +22,21 @@ export async function GET() {
         id: doc.id,
         name: data.name,
         qr: data.qr,
+        lat: data.lat || 0,
+        lng: data.lng || 0,
+        tolerance: data.tolerance || 100,
         active: data.active,
         createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
       });
     });
 
     // 在記憶體中排序（避免需要 Firestore 索引）
-    points.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    points.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return aTime - bTime;
+    });
 
     return NextResponse.json({
       ok: true,

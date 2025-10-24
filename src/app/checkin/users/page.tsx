@@ -198,7 +198,7 @@ export default function UsersManagePage() {
                             <div>
                               <p className="font-medium">{u.displayName}</p>
                               <p className="text-xs text-gray-500">
-                                {new Date(u.createdAt).toLocaleDateString("zh-TW")} 加入
+                                {u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString("zh-TW") : "未知"} 加入
                               </p>
                             </div>
                           </div>

@@ -57,15 +57,10 @@ export async function POST(req: NextRequest) {
           displayName: displayName || decoded.name || "未命名",
           pictureUrl: pictureUrl || decoded.picture || "",
           lineUserId: lineUserId || decoded.sub || "",
-          roles: {
-            user: true,
-            poweruser: false,
-            admin: false,
-            superadmin: isFirstUser,
-          },
+          role: isFirstUser ? "superadmin" : "user",
           isSuperAdmin: isFirstUser,
-          createdAt: now,
-          lastLoginAt: now,
+          createdAt: now as any,
+          lastLoginAt: now as any,
         };
 
         // 原子性操作：同時設置用戶和 SuperAdmin 標記
@@ -92,7 +87,7 @@ export async function POST(req: NextRequest) {
     } else {
       // 既有用戶，更新登入時間和資料
       const updates: Partial<UserDoc> = {
-        lastLoginAt: now,
+        lastLoginAt: now as any,
       };
 
       if (displayName) updates.displayName = displayName;

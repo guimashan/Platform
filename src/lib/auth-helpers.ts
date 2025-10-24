@@ -205,3 +205,29 @@ export function verifyGpsLocation(
     distance: Math.round(distance),
   };
 }
+
+/**
+ * 檢查是否為簽到系統管理員
+ */
+export function hasCheckinAdmin(auth: { uid: string; userData: any }): boolean {
+  if (!auth || !auth.userData) {
+    return false;
+  }
+  
+  // 檢查是否為 SuperAdmin
+  if (isSuperAdmin(auth.userData)) {
+    return true;
+  }
+  
+  // 檢查新架構的 checkin_role
+  if (auth.userData.checkin_role === "admin") {
+    return true;
+  }
+  
+  // 檢查舊架構的 roles.checkin_admin
+  if (auth.userData.roles?.checkin_admin === true) {
+    return true;
+  }
+  
+  return false;
+}
