@@ -5,15 +5,30 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Smartphone, Monitor } from "lucide-react";
+import { initLiff } from "@/lib/liff";
 
 export default function HomePage() {
   const [isLineApp, setIsLineApp] = useState<boolean | null>(null);
+  const [liffReady, setLiffReady] = useState(false);
 
   useEffect(() => {
     // 判斷是否在 LINE App 內
     const userAgent = navigator.userAgent.toLowerCase();
     const inLineApp = userAgent.includes('line');
     setIsLineApp(inLineApp);
+
+    // 如果在 LINE App 內，初始化 LIFF（但不強制登入）
+    if (inLineApp) {
+      initLiff()
+        .then(() => {
+          setLiffReady(true);
+        })
+        .catch((err) => {
+          console.error("LIFF 初始化失敗:", err);
+          // 即使 LIFF 初始化失敗，仍然顯示選單
+          setLiffReady(true);
+        });
+    }
   }, []);
 
   // Loading 狀態
@@ -28,7 +43,7 @@ export default function HomePage() {
     );
   }
 
-  // LINE App 內 - 顯示前台入口
+  // LINE App 內 - 顯示前台入口（LIFF 系統選單）
   if (isLineApp) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
@@ -59,20 +74,22 @@ export default function HomePage() {
             <Link href="/service" data-testid="link-service">
               <Button 
                 variant="outline" 
-                className="w-full h-16 text-xl hover-elevate"
+                className="w-full h-16 text-xl hover-elevate opacity-50 cursor-not-allowed"
                 data-testid="button-service"
+                disabled
               >
-                🏮 神務服務
+                🏮 神務服務（即將推出）
               </Button>
             </Link>
 
             <Link href="/schedule" data-testid="link-schedule">
               <Button 
                 variant="outline" 
-                className="w-full h-16 text-xl hover-elevate"
+                className="w-full h-16 text-xl hover-elevate opacity-50 cursor-not-allowed"
                 data-testid="button-schedule"
+                disabled
               >
-                📅 志工排班系統
+                📅 志工排班系統（即將推出）
               </Button>
             </Link>
 

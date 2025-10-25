@@ -52,6 +52,24 @@ The platform is designed with a four-layer Firebase architecture. Currently impl
 
 ## Recent Updates
 
+### 2025-10-25 14:45 - LIFF 統一入口架構（方案 2：根路徑）
+- ✅ **採用方案 2：根路徑入口** (`https://go.guimashan.org.tw/`)
+  - 一個 LIFF App 支援所有業務系統（簽到、神服、排班）
+  - 首頁作為統一選單，顯示所有可用服務
+  - 用戶可直接訪問子路徑（如 `/checkin`）無需經過首頁
+- ✅ **LIFF 初始化策略**：
+  - 首頁：初始化 LIFF 但不強制登入（僅顯示選單）
+  - `/checkin`：完整 LIFF 流程（初始化 + 自動登入）
+  - `/service`、`/schedule`：未來實作，同樣模式
+- ✅ **使用情境支援**：
+  - LINE Bot 關鍵字 → 直接跳轉功能頁（如 `/checkin`）✅
+  - LIFF App 選單 → 選擇服務 → 跳轉功能頁 ✅
+  - 分享連結 → 直接開啟特定功能 ✅
+- 🔧 **LINE 設定需求**：
+  - LIFF Endpoint URL: `https://go.guimashan.org.tw/`
+  - LINE Login Callback: `https://go.guimashan.org.tw/api/auth/line-oauth/callback`
+  - `NEXT_PUBLIC_BASE_URL`: `https://go.guimashan.org.tw`
+
 ### 2025-10-25 12:00 - 雙登入架構改造完成（LIFF + LINE Login OAuth）
 - ✅ **雙登入系統實現**：
   - 前台（LIFF）：`/checkin` - LINE LIFF SDK，供志工簽到使用
