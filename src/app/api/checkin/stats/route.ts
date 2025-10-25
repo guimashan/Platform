@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkinAdminDb } from "@/lib/admin-checkin";
 import { platformAdminDb } from "@/lib/admin-platform";
-import { verifyAuth, hasCheckinAdmin } from "@/lib/auth-helpers";
+import { verifyAuth, hasCheckinAccess } from "@/lib/auth-helpers";
 import type { Checkin } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (!hasCheckinAdmin(auth)) {
+    if (!hasCheckinAccess(auth)) {
       return NextResponse.json(
-        { error: "權限不足：需要管理員權限" },
+        { error: "權限不足：需要 poweruser 或以上權限" },
         { status: 403 }
       );
     }

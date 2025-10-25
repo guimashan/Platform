@@ -30,7 +30,11 @@ export async function GET(req: Request) {
     
     return NextResponse.json({
       isSuperAdmin: userData?.isSuperAdmin || false,
-      roles: userData?.roles || {}
+      roles: userData?.roles || {},
+      // 新架構：業務層角色
+      checkin_role: userData?.checkin_role || "user",
+      schedule_role: userData?.schedule_role || "user",
+      service_role: userData?.service_role || "user",
     });
   } catch (err: any) {
     console.error("[/api/auth/permissions] ERROR:", err);

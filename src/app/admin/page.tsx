@@ -15,6 +15,10 @@ interface UserPermissions {
     schedule_admin?: boolean;
     service_admin?: boolean;
   };
+  // 新架構：業務層角色
+  checkin_role?: string;
+  schedule_role?: string;
+  service_role?: string;
 }
 
 export default function AdminPage() {
@@ -62,9 +66,21 @@ export default function AdminPage() {
     );
   }
 
-  const hasCheckinAccess = permissions?.isSuperAdmin || permissions?.roles.checkin_admin;
-  const hasScheduleAccess = permissions?.isSuperAdmin || permissions?.roles.schedule_admin;
-  const hasServiceAccess = permissions?.isSuperAdmin || permissions?.roles.service_admin;
+  // 檢查簽到系統訪問權限（poweruser 或以上）
+  const hasCheckinAccess = 
+    permissions?.isSuperAdmin || 
+    permissions?.roles.checkin_admin ||
+    ["poweruser", "admin"].includes(permissions?.checkin_role || "");
+  
+  const hasScheduleAccess = 
+    permissions?.isSuperAdmin || 
+    permissions?.roles.schedule_admin ||
+    ["poweruser", "admin"].includes(permissions?.schedule_role || "");
+  
+  const hasServiceAccess = 
+    permissions?.isSuperAdmin || 
+    permissions?.roles.service_admin ||
+    ["poweruser", "admin"].includes(permissions?.service_role || "");
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50 dark:from-gray-900 dark:to-gray-800">

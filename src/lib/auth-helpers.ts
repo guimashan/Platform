@@ -207,7 +207,8 @@ export function verifyGpsLocation(
 }
 
 /**
- * 檢查是否為簽到系統管理員
+ * 檢查是否為簽到系統管理員（admin 或 superadmin）
+ * 可以修改巡邏點、修改人員權限
  */
 export function hasCheckinAdmin(auth: { uid: string; userData: any }): boolean {
   if (!auth || !auth.userData) {
@@ -224,10 +225,51 @@ export function hasCheckinAdmin(auth: { uid: string; userData: any }): boolean {
     return true;
   }
   
-  // 檢查舊架構的 roles.checkin_admin
+  // 檢查舊架構的 roles.checkin_admin（向後相容）
   if (auth.userData.roles?.checkin_admin === true) {
     return true;
   }
   
   return false;
+}
+
+/**
+ * 檢查是否可以訪問簽到系統後台（poweruser 或以上）
+ * poweruser: 可以查看記錄，但不能修改設定
+ * admin/superadmin: 可以查看和修改
+ */
+export function hasCheckinAccess(auth: { uid: string; userData: any }): boolean {
+  if (!auth || !auth.userData) {
+    return false;
+  }
+  
+  // SuperAdmin 有所有權限
+  if (isSuperAdmin(auth.userData)) {
+    return true;
+  }
+  
+  // 檢查 checkin_role 是否為 poweruser 或以上
+  const checkinRole = auth.userData.checkin_role;
+  if (checkinRole === "poweruser" || checkinRole === "admin") {
+    return true;
+  }
+  
+  // 檢查舊架構的 roles.checkin_admin（向後相容）
+  if (auth.userData.roles?.checkin_admin === true) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * 檢查是否為簽到系統 PowerUser（可以查看記錄）
+ */
+export function hasCheckinPowerUser(auth: { uid: string; userData: any }): boolean {
+  if (!auth || !auth.userData) {
+    return false;
+  }
+  
+  // 有後台訪問權限即為 PowerUser 或以上
+  return hasCheckinAccess(auth);
 }
