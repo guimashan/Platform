@@ -35,8 +35,14 @@ export async function verifyLineIdToken(
     // Step 1: 解碼 JWT header 獲取 kid 和 alg
     console.log('   ➡️  Step 1: 解碼 JWT Header...');
     const header = decodeProtectedHeader(idToken);
+    console.log('   完整 Header:', JSON.stringify(header, null, 2));
     console.log('   Algorithm:', header.alg);
     console.log('   Key ID:', header.kid);
+    
+    if (!header.kid) {
+      console.error('   ❌ Header 中沒有 kid！');
+      throw new Error('ID token header missing kid (key ID)');
+    }
     
     // Step 2: 從 LINE JWKS 獲取對應的公鑰
     console.log('   ➡️  Step 2: 獲取 LINE JWKS...');

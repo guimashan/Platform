@@ -96,10 +96,27 @@ export async function GET(req: Request) {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
     const idToken = tokenData.id_token;
+    
+    console.log('📦 Token Exchange Response:', {
+      has_access_token: !!accessToken,
+      has_id_token: !!idToken,
+      id_token_length: idToken?.length || 0,
+      id_token_parts: idToken?.split('.').length || 0,
+      id_token_preview: idToken ? `${idToken.substring(0, 30)}...${idToken.substring(idToken.length - 30)}` : 'MISSING'
+    });
 
     if (!accessToken || !idToken) {
+      console.error('❌ Missing tokens:', { accessToken: !!accessToken, idToken: !!idToken });
       return NextResponse.redirect(
         new URL('/admin/login?error=no_tokens', req.url)
+      );
+    }
+    
+    // 驗證 ID token 格式（應該是 3 部分：header.payload.signature）
+    if (!idToken || typeof idToken !== 'string' || idToken.split('.').length !== 3) {
+      console.error('❌ Invalid ID token format:', idToken);
+      return NextResponse.redirect(
+        new URL('/admin/login?error=invalid_id_token_format', req.url)
       );
     }
 
