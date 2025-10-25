@@ -94,31 +94,41 @@ export async function GET(req: Request) {
       );
     }
 
-    // 安全解析 JSON（處理可能包含控制字符的響應）
+    // 先取得原始響應文本
+    const responseText = await tokenResponse.text();
+    console.log('📦 Token response 原始長度:', responseText.length);
+    
+    // 嘗試解析 JSON
     let tokenData: { access_token: string; id_token: string };
     try {
-      const responseText = await tokenResponse.text();
+      tokenData = JSON.parse(responseText);
+      console.log('✅ 成功解析 JSON（無需清理）');
+    } catch (firstError) {
+      console.error('❌ JSON 解析失敗（第一次嘗試）:', firstError);
+      console.log('🔧 嘗試清理控制字符後再次解析...');
       
-      // 診斷日誌：顯示原始響應（前 200 字符）
-      console.log('🔍 Token response 原始內容（前200字）:', responseText.substring(0, 200));
-      console.log('🔍 Position 158 附近的字符:', 
-        Array.from(responseText.substring(150, 170))
-          .map((c, i) => `[${150+i}]=${c.charCodeAt(0)}(${c})`)
-          .join(' ')
-      );
+      // 顯示 position 158 附近的字符（用於診斷）
+      if (responseText.length > 158) {
+        console.log('🔍 Position 158 附近的字符:', 
+          Array.from(responseText.substring(150, 170))
+            .map((c, i) => `[${150+i}]=${c.charCodeAt(0)}`)
+            .join(' ')
+        );
+      }
       
-      // 移除 ALL 控制字符，包括換行符（\n, \r）
-      // LINE 的 id_token 可能包含 base64 換行導致 JSON 無效
-      const cleanedText = responseText.replace(/[\x00-\x1F\x7F]/g, '');
-      console.log('✅ 清理後的內容（前200字）:', cleanedText.substring(0, 200));
-      
-      tokenData = JSON.parse(cleanedText);
-    } catch (parseError) {
-      console.error('❌ Token response JSON 解析失敗:', parseError);
-      const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
-      return NextResponse.redirect(
-        new URL(`/admin/login?error=token_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
-      );
+      try {
+        // 移除所有不可見字符（包括換行符、回車符等）
+        const cleanedText = responseText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        console.log('✅ 清理後長度:', cleanedText.length);
+        tokenData = JSON.parse(cleanedText);
+        console.log('✅ 成功解析 JSON（清理後）');
+      } catch (secondError) {
+        console.error('❌ JSON 解析失敗（清理後仍然失敗）:', secondError);
+        const errorMsg = secondError instanceof Error ? secondError.message : String(secondError);
+        return NextResponse.redirect(
+          new URL(`/admin/login?error=token_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
+        );
+      }
     }
     
     const accessToken = tokenData.access_token;
@@ -160,18 +170,24 @@ export async function GET(req: Request) {
       );
     }
 
-    // 安全解析 Profile JSON（處理可能包含控制字符的響應）
+    // 解析 Profile JSON
+    const profileText = await profileResponse.text();
     let profile: { userId: string; displayName: string; pictureUrl?: string };
     try {
-      const profileText = await profileResponse.text();
-      const cleanedProfileText = profileText.replace(/[\x00-\x1F\x7F]/g, '');
-      profile = JSON.parse(cleanedProfileText);
+      profile = JSON.parse(profileText);
     } catch (parseError) {
-      console.error('❌ Profile JSON 解析失敗:', parseError);
-      const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
-      return NextResponse.redirect(
-        new URL(`/admin/login?error=profile_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
-      );
+      console.error('❌ Profile JSON 解析失敗，嘗試清理:', parseError);
+      try {
+        const cleanedProfileText = profileText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        profile = JSON.parse(cleanedProfileText);
+        console.log('✅ Profile JSON 清理後解析成功');
+      } catch (secondError) {
+        console.error('❌ Profile JSON 清理後仍然失敗:', secondError);
+        const errorMsg = secondError instanceof Error ? secondError.message : String(secondError);
+        return NextResponse.redirect(
+          new URL(`/admin/login?error=profile_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
+        );
+      }
     }
     
     const lineUserId = profile.userId;

@@ -54,16 +54,21 @@ export async function verifyLineIdToken(
       throw new Error(`LINE verify API failed: ${verifyResponse.status} ${errorText}`);
     }
     
-    // 安全解析 JSON（處理可能包含控制字符的響應）
+    // 解析 JSON
+    const responseText = await verifyResponse.text();
     let payload: LineIdTokenPayload;
     try {
-      const responseText = await verifyResponse.text();
-      // 移除 ALL 控制字符，包括換行符（\n, \r）
-      const cleanedText = responseText.replace(/[\x00-\x1F\x7F]/g, '');
-      payload = JSON.parse(cleanedText) as LineIdTokenPayload;
+      payload = JSON.parse(responseText) as LineIdTokenPayload;
     } catch (parseError) {
-      console.error('   ❌ JSON 解析失敗:', parseError);
-      throw new Error(`Failed to parse LINE API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+      console.error('   ❌ JSON 解析失敗，嘗試清理:', parseError);
+      try {
+        const cleanedText = responseText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+        payload = JSON.parse(cleanedText) as LineIdTokenPayload;
+        console.log('   ✅ 清理後解析成功');
+      } catch (secondError) {
+        console.error('   ❌ 清理後仍然失敗:', secondError);
+        throw new Error(`Failed to parse LINE API response: ${secondError instanceof Error ? secondError.message : String(secondError)}`);
+      }
     }
     
     console.log('   ✅ LINE 驗證 API 成功');
