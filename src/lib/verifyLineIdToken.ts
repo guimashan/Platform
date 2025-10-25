@@ -54,9 +54,22 @@ export async function verifyLineIdToken(
       throw new Error(`LINE verify API failed: ${verifyResponse.status} ${errorText}`);
     }
     
-    const payload = await verifyResponse.json() as LineIdTokenPayload;
+    // 安全解析 JSON（處理可能包含控制字符的響應）
+    let payload: LineIdTokenPayload;
+    try {
+      const responseText = await verifyResponse.text();
+      // 移除控制字符（但保留空格、換行等必要字符）
+      const cleanedText = responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      payload = JSON.parse(cleanedText) as LineIdTokenPayload;
+    } catch (parseError) {
+      console.error('   ❌ JSON 解析失敗:', parseError);
+      throw new Error(`Failed to parse LINE API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+    
     console.log('   ✅ LINE 驗證 API 成功');
-    console.log('   Payload:', JSON.stringify(payload, null, 2));
+    console.log('   User ID:', payload.sub);
+    console.log('   Email:', payload.email || 'N/A');
+    console.log('   Name:', payload.name || 'N/A');
     
     // LINE API 已經驗證了 nonce（如果提供），但我們再次確認
     if (expectedNonce && payload.nonce !== expectedNonce) {
