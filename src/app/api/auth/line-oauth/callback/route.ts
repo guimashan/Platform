@@ -5,6 +5,7 @@ import { platformAdminAuth, platformAdminDb } from "@/lib/admin-platform";
 import { verifyLineIdToken } from "@/lib/verifyLineIdToken";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic"; // 強制動態渲染，避免 Next.js 靜態化錯誤
 
 export async function GET(req: Request) {
   try {
