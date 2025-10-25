@@ -36,11 +36,11 @@ export async function verifyLineIdToken(
   
   try {
     // 使用 LINE 的公鑰驗證 JWT 簽名
+    // JWKS 已經包含算法信息，不需要手動指定
     console.log('   ➡️  Step 1: 驗證 JWT 簽名...');
     const { payload } = await jwtVerify(idToken, JWKS, {
       issuer: 'https://access.line.me',
       audience: expectedAudience,
-      algorithms: ['RS256'], // LINE 使用 RS256 算法
     });
     console.log('   ✅ JWT 簽名驗證成功');
     console.log('   Payload:', JSON.stringify(payload, null, 2));
