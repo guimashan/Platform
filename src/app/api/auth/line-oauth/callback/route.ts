@@ -130,7 +130,12 @@ export async function GET(req: Request) {
         channelId
       );
       
-      email = verifiedPayload.email || '';
+      // 暫時：如果沒有 email，使用 LINE User ID 作為替代
+      email = verifiedPayload.email || `${lineUserId}@line.local`;
+      
+      if (!verifiedPayload.email) {
+        console.warn(`⚠️  LINE User ${lineUserId} 沒有 email，使用替代 email: ${email}`);
+      }
     } catch (err) {
       console.error('ID token verification failed:', err);
       // ID token 驗證失敗 = 安全問題，立即拒絕
@@ -139,7 +144,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 5. Email 必須存在（管理後台要求）
+    // 5. Email 檢查（暫時允許替代 email）
     if (!email) {
       return NextResponse.redirect(
         new URL('/admin/login?error=no_email', req.url)
