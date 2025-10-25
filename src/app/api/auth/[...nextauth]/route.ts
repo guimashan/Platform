@@ -9,25 +9,21 @@ const authOptions: NextAuthOptions = {
     {
       id: "line",
       name: "LINE",
-      type: "oauth",
-      wellKnown: "https://access.line.me/.well-known/openid-configuration",
-      authorization: {
-        url: "https://access.line.me/oauth2/v2.1/authorize",
-        params: {
-          scope: "profile openid email",
-          prompt: "consent",
-        },
-      },
-      token: "https://api.line.me/oauth2/v2.1/token",
-      userinfo: "https://api.line.me/v2/profile",
+      type: "oidc",
+      issuer: "https://access.line.me",
       clientId: process.env.LINE_CHANNEL_ID,
       clientSecret: process.env.LINE_CHANNEL_SECRET,
+      authorization: {
+        params: {
+          scope: "profile openid email",
+        },
+      },
       profile(profile) {
         return {
-          id: profile.userId || profile.sub,
-          name: profile.displayName || profile.name,
-          email: profile.email || `${profile.userId}@line.local`,
-          image: profile.pictureUrl || profile.picture,
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
         };
       },
     },
