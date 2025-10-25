@@ -16,25 +16,38 @@ export default function AdminLoginCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('[Callback] 開始處理登入 callback...');
+        
         // 從後端 API 取得存在 HTTP-only cookie 的 token
         const response = await fetch('/api/auth/token');
+        console.log('[Callback] Token API 回應狀態:', response.status);
+        
         const data = await response.json();
+        console.log('[Callback] Token API 回應資料:', { ok: data.ok, hasToken: !!data.token, error: data.error });
         
         if (!data.ok || !data.token) {
-          setError(data.error === "NO_TOKEN" ? "登入憑證已過期，請重新登入" : "無法取得登入憑證");
+          const errorMsg = data.error === "NO_TOKEN" 
+            ? "登入憑證已過期，請重新登入" 
+            : `無法取得登入憑證: ${data.error || '未知錯誤'}`;
+          console.error('[Callback] Token 取得失敗:', errorMsg);
+          setError(errorMsg);
           return;
         }
 
+        console.log('[Callback] 嘗試使用 Custom Token 登入 Firebase...');
         // 使用 Custom Token 登入 Firebase
-        await signInWithCustomToken(platformAuth, data.token);
+        const userCredential = await signInWithCustomToken(platformAuth, data.token);
+        console.log('[Callback] Firebase 登入成功！UID:', userCredential.user.uid);
 
         // 登入成功，導向統一管理中心
+        console.log('[Callback] 準備跳轉到 /admin...');
         setTimeout(() => {
           router.push('/admin');
         }, 1000);
       } catch (err: any) {
-        console.error("登入錯誤:", err);
-        setError(err?.message || "登入失敗");
+        console.error("[Callback] 登入錯誤:", err);
+        const errorMsg = err?.message || "登入失敗";
+        setError(`登入失敗: ${errorMsg}`);
       }
     };
 
