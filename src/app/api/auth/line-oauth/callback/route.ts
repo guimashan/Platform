@@ -98,9 +98,20 @@ export async function GET(req: Request) {
     let tokenData: { access_token: string; id_token: string };
     try {
       const responseText = await tokenResponse.text();
+      
+      // 診斷日誌：顯示原始響應（前 200 字符）
+      console.log('🔍 Token response 原始內容（前200字）:', responseText.substring(0, 200));
+      console.log('🔍 Position 158 附近的字符:', 
+        Array.from(responseText.substring(150, 170))
+          .map((c, i) => `[${150+i}]=${c.charCodeAt(0)}(${c})`)
+          .join(' ')
+      );
+      
       // 移除 ALL 控制字符，包括換行符（\n, \r）
       // LINE 的 id_token 可能包含 base64 換行導致 JSON 無效
       const cleanedText = responseText.replace(/[\x00-\x1F\x7F]/g, '');
+      console.log('✅ 清理後的內容（前200字）:', cleanedText.substring(0, 200));
+      
       tokenData = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('❌ Token response JSON 解析失敗:', parseError);
