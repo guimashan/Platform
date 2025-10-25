@@ -37,6 +37,7 @@ export default function CheckinManagePage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"day" | "week" | "month">("week");
+  const [permissions, setPermissions] = useState<any>(null);
 
   useEffect(() => {
     const unsubscribe = platformAuth.onAuthStateChanged((currentUser) => {
@@ -54,22 +55,38 @@ export default function CheckinManagePage() {
   const fetchStats = async (currentUser: any) => {
     try {
       const idToken = await currentUser.getIdToken();
-      const response = await fetch("/api/checkin/stats", {
-        headers: {
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
+      
+      // 並行獲取統計數據和權限資訊
+      const [statsResponse, permissionsResponse] = await Promise.all([
+        fetch("/api/checkin/stats", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }),
+        fetch("/api/auth/permissions", {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (statsResponse.ok) {
+        const data = await statsResponse.json();
         setStats(data);
       }
+      
+      if (permissionsResponse.ok) {
+        const permData = await permissionsResponse.json();
+        setPermissions(permData);
+      }
     } catch (error) {
-      console.error("載入統計數據錯誤:", error);
+      console.error("載入數據錯誤:", error);
     } finally {
       setLoading(false);
     }
   };
+  
+  // 檢查是否為 admin（可以修改設定）
+  const isAdmin = 
+    permissions?.isSuperAdmin || 
+    permissions?.roles?.checkin_admin ||
+    permissions?.checkin_role === "admin";
 
   const handleLogout = async () => {
     await platformAuth.signOut();
@@ -357,35 +374,42 @@ export default function CheckinManagePage() {
 
         {/* 快速導航 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/users")}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-orange-100 rounded-lg">
-                  <Users className="w-6 h-6 text-orange-600" />
+          {/* 人員管理 - 僅 admin 可訪問 */}
+          {isAdmin && (
+            <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/users")} data-testid="card-user-management">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Users className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">人員管理</h3>
+                    <p className="text-sm text-gray-500">管理簽到系統使用者角色</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">人員管理</h3>
-                  <p className="text-sm text-gray-500">管理簽到系統使用者角色</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/points")}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <MapPin className="w-6 h-6 text-blue-600" />
+          {/* 巡邏點管理 - 僅 admin 可訪問 */}
+          {isAdmin && (
+            <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/manage/points")} data-testid="card-point-management">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <MapPin className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-900">巡邏點管理</h3>
+                    <p className="text-sm text-gray-500">管理 GPS 座標與 QR Code</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900">巡邏點管理</h3>
-                  <p className="text-sm text-gray-500">管理 GPS 座標與 QR Code</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/records")}>
+          {/* 簽到記錄 - poweruser 及以上可訪問 */}
+          <Card className="hover-elevate cursor-pointer" onClick={() => router.push("/checkin/records")} data-testid="card-checkin-records">
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-100 rounded-lg">
