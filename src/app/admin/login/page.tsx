@@ -1,337 +1,114 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { platformAuth } from "@/lib/firebase-platform";
-import { signInWithEmailAndPassword, signInWithCustomToken } from "firebase/auth";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ShieldCheck, AlertCircle } from "lucide-react";
-import liff from "@line/liff";
+import ErrorAlert from "@/components/ui/error-alert";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [liffReady, setLiffReady] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<"email" | "line">("email");
-  
-  // LINE 登入相關狀態
-  const [lineProfile, setLineProfile] = useState<any>(null);
-  const [lineIdToken, setLineIdToken] = useState<string>("");
-  const [needEmailInput, setNeedEmailInput] = useState(false);
-  const [manualEmail, setManualEmail] = useState("");
+  const searchParams = useSearchParams();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const initLiff = async () => {
-      try {
-        const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID;
-        if (!liffId) {
-          console.error("LIFF ID 未設定");
-          return;
-        }
-        await liff.init({ liffId });
-        setLiffReady(true);
-      } catch (error) {
-        console.error("LIFF 初始化失敗:", error);
-      }
-    };
-
-    initLiff();
-  }, []);
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      await signInWithEmailAndPassword(platformAuth, email, password);
-      router.push("/admin");
-    } catch (err: any) {
-      console.error("登入錯誤:", err);
-      
-      if (err.code === "auth/invalid-credential") {
-        setError("電子郵件或密碼錯誤");
-      } else if (err.code === "auth/too-many-requests") {
-        setError("登入嘗試次數過多，請稍後再試");
-      } else {
-        setError("登入失敗，請稍後再試");
-      }
-    } finally {
-      setLoading(false);
+    // 檢查是否有錯誤參數
+    const errorParam = searchParams?.get('error');
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        'no_code': '授權失敗：未收到授權碼',
+        'config_error': '系統設定錯誤',
+        'token_exchange_failed': '授權碼交換失敗',
+        'no_tokens': '未收到登入憑證',
+        'profile_fetch_failed': '無法取得使用者資料',
+        'invalid_id_token': 'ID Token 格式錯誤',
+        'no_email': '您的 LINE 帳號未設定 Email',
+        'callback_failed': '登入處理失敗',
+      };
+      setError(errorMessages[errorParam] || `登入失敗: ${errorParam}`);
     }
-  };
+  }, [searchParams]);
 
-  const handleLineLogin = async () => {
-    if (!liffReady) {
-      setError("LINE 登入尚未準備就緒");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
-      }
-
-      // 取得 ID Token 和 Profile
-      const idToken = liff.getIDToken();
-      if (!idToken) {
-        setError("無法取得 LINE ID Token");
-        return;
-      }
-
-      const profile = await liff.getProfile();
-      const email = liff.getDecodedIDToken()?.email;
-
-      // 如果沒有 email，顯示輸入框讓用戶填寫
-      if (!email) {
-        setLineProfile(profile);
-        setLineIdToken(idToken);
-        setNeedEmailInput(true);
-        setLoading(false);
-        return;
-      }
-
-      // 有 email，直接登入
-      await completeLineLogin(idToken, email, profile);
-    } catch (err: any) {
-      console.error("LINE 登入錯誤:", err);
-      setError(err.message || "LINE 登入失敗，請稍後再試");
-      setLoading(false);
-    }
-  };
-
-  const handleManualEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!manualEmail || !manualEmail.includes("@")) {
-      setError("請輸入有效的 Email 地址");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      await completeLineLogin(lineIdToken, manualEmail, lineProfile);
-    } catch (err: any) {
-      console.error("LINE 登入錯誤:", err);
-      setError(err.message || "LINE 登入失敗，請稍後再試");
-      setLoading(false);
-    }
-  };
-
-  const completeLineLogin = async (idToken: string, email: string, profile: any) => {
-    const response = await fetch("/api/auth/line", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        idToken,
-        email,
-        displayName: profile.displayName,
-        pictureUrl: profile.pictureUrl
-      }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || "LINE 認證失敗");
-    }
-
-    const { customToken, hasPassword } = await response.json();
-    await signInWithCustomToken(platformAuth, customToken);
-    
-    // 根據是否已設定密碼跳轉
-    if (hasPassword) {
-      router.push("/admin");
-    } else {
-      router.push("/admin/setup");
-    }
-  };
-
-  const cancelEmailInput = () => {
-    setNeedEmailInput(false);
-    setManualEmail("");
-    setLineProfile(null);
-    setLineIdToken("");
-    setError("");
+  const handleLineLogin = () => {
+    // 重定向到 LINE Login OAuth 授權頁面
+    window.location.href = '/api/auth/line-oauth/authorize';
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-50 px-4">
-      <Card className="w-full max-w-md shadow-lg">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-              <ShieldCheck className="w-9 h-9 text-blue-600" />
-            </div>
+            <ShieldCheck className="w-12 h-12 text-blue-600" />
           </div>
-          <CardTitle className="text-2xl">管理員登入</CardTitle>
-          <CardDescription>
-            {needEmailInput ? "請輸入您的 Email" : "選擇登入方式訪問管理後台"}
+          <CardTitle className="text-2xl md:text-3xl">
+            管理後台登入
+          </CardTitle>
+          <CardDescription className="text-base mt-2">
+            使用 LINE 帳號登入管理系統
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {!needEmailInput ? (
-            <>
-              <div className="flex gap-2 mb-6">
-                <Button
-                  type="button"
-                  variant={loginMethod === "email" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setLoginMethod("email")}
-                  data-testid="button-method-email"
-                >
-                  Email 登入
-                </Button>
-                <Button
-                  type="button"
-                  variant={loginMethod === "line" ? "default" : "outline"}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => setLoginMethod("line")}
-                  data-testid="button-method-line"
-                >
-                  LINE 登入
-                </Button>
-              </div>
 
-              {loginMethod === "email" ? (
-                <form onSubmit={handleEmailLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">電子郵件</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@example.com"
-                      required
-                      disabled={loading}
-                      data-testid="input-email"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">密碼</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      disabled={loading}
-                      data-testid="input-password"
-                    />
-                  </div>
-
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={loading}
-                    data-testid="button-login"
-                  >
-                    {loading ? "登入中..." : "使用 Email 登入"}
-                  </Button>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  <Button
-                    type="button"
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={handleLineLogin}
-                    disabled={loading || !liffReady}
-                    data-testid="button-line-login"
-                  >
-                    {loading ? "登入中..." : !liffReady ? "準備中..." : "使用 LINE 登入"}
-                  </Button>
-
-                  {error && (
-                    <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <p className="text-sm text-gray-500 text-center">
-                    點擊按鈕後將透過 LINE 進行身份驗證
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <form onSubmit={handleManualEmailSubmit} className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-md border border-blue-200">
-                <p className="text-sm text-blue-800 mb-2">
-                  <strong>LINE 使用者：</strong>{lineProfile?.displayName}
-                </p>
-                <p className="text-xs text-blue-600">
-                  由於 LINE 帳號未公開 Email，請手動輸入您的 Email 地址以完成註冊。
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="manual-email">Email 地址</Label>
-                <Input
-                  id="manual-email"
-                  type="email"
-                  value={manualEmail}
-                  onChange={(e) => setManualEmail(e.target.value)}
-                  placeholder="your.email@example.com"
-                  required
-                  disabled={loading}
-                  data-testid="input-manual-email"
-                />
-                <p className="text-xs text-gray-500">
-                  此 Email 將用於系統通知和後續登入
-                </p>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md" data-testid="error-message">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={cancelEmailInput}
-                  disabled={loading}
-                  data-testid="button-cancel"
-                >
-                  取消
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={loading}
-                  data-testid="button-submit-email"
-                >
-                  {loading ? "處理中..." : "完成註冊"}
-                </Button>
-              </div>
-            </form>
+        <CardContent className="space-y-6">
+          {error && (
+            <ErrorAlert message={error} />
           )}
+
+          <div className="space-y-4">
+            <Button
+              onClick={handleLineLogin}
+              className="w-full h-14 text-lg bg-[#06C755] hover:bg-[#05b04b] text-white"
+              data-testid="button-line-login"
+            >
+              <svg 
+                className="w-6 h-6 mr-2" 
+                viewBox="0 0 24 24" 
+                fill="currentColor"
+              >
+                <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+              </svg>
+              使用 LINE 登入
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-500">
+                  管理者專用
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1 text-sm text-blue-800">
+                  <p className="font-medium">管理權限說明</p>
+                  <ul className="space-y-1 text-xs text-blue-700">
+                    <li>• PowerUser：查看紀錄、匯出報表</li>
+                    <li>• Admin：管理巡邏點、使用者</li>
+                    <li>• SuperAdmin：完整後台權限</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center pt-4 border-t">
+            <p className="text-sm text-gray-500 mb-2">
+              📱 一般使用者請於 LINE App 內開啟
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/')}
+              data-testid="button-back-home"
+            >
+              返回首頁
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </main>
