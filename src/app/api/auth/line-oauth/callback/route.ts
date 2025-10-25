@@ -138,9 +138,11 @@ export async function GET(req: Request) {
       }
     } catch (err) {
       console.error('ID token verification failed:', err);
-      // ID token 驗證失敗 = 安全問題，立即拒絕
+      // 暫時：將詳細錯誤訊息返回給前端（僅用於診斷）
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorDetail = encodeURIComponent(errorMessage.substring(0, 200));
       return NextResponse.redirect(
-        new URL('/admin/login?error=id_token_verification_failed', req.url)
+        new URL(`/admin/login?error=id_token_verification_failed&detail=${errorDetail}`, req.url)
       );
     }
 

@@ -15,6 +15,8 @@ function LoginForm() {
   useEffect(() => {
     // 檢查是否有錯誤參數
     const errorParam = searchParams?.get('error');
+    const errorDetail = searchParams?.get('detail');
+    
     if (errorParam) {
       const errorMessages: Record<string, string> = {
         'no_code': '授權失敗：未收到授權碼',
@@ -26,7 +28,15 @@ function LoginForm() {
         'no_email': '您的 LINE 帳號未設定 Email',
         'callback_failed': '登入處理失敗',
       };
-      setError(errorMessages[errorParam] || `登入失敗: ${errorParam}`);
+      
+      let errorMsg = errorMessages[errorParam] || `登入失敗: ${errorParam}`;
+      
+      // 如果有詳細錯誤訊息（診斷用）
+      if (errorDetail) {
+        errorMsg += `\n\n詳細錯誤：${decodeURIComponent(errorDetail)}`;
+      }
+      
+      setError(errorMsg);
     }
   }, [searchParams]);
 
