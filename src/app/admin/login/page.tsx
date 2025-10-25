@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, AlertCircle } from "lucide-react";
 import ErrorAlert from "@/components/ui/error-alert";
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -112,5 +112,21 @@ export default function AdminLoginPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            載入中...
+          </CardContent>
+        </Card>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
