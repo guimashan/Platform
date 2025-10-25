@@ -93,7 +93,21 @@ export async function GET(req: Request) {
       );
     }
 
-    const tokenData = await tokenResponse.json();
+    // 安全解析 JSON（處理可能包含控制字符的響應）
+    let tokenData: { access_token: string; id_token: string };
+    try {
+      const responseText = await tokenResponse.text();
+      // 移除控制字符（但保留空格、換行等必要字符）
+      const cleanedText = responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      tokenData = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('❌ Token response JSON 解析失敗:', parseError);
+      const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+      return NextResponse.redirect(
+        new URL(`/admin/login?error=token_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
+      );
+    }
+    
     const accessToken = tokenData.access_token;
     const idToken = tokenData.id_token;
     
@@ -133,7 +147,20 @@ export async function GET(req: Request) {
       );
     }
 
-    const profile = await profileResponse.json();
+    // 安全解析 Profile JSON（處理可能包含控制字符的響應）
+    let profile: { userId: string; displayName: string; pictureUrl?: string };
+    try {
+      const profileText = await profileResponse.text();
+      const cleanedProfileText = profileText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      profile = JSON.parse(cleanedProfileText);
+    } catch (parseError) {
+      console.error('❌ Profile JSON 解析失敗:', parseError);
+      const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+      return NextResponse.redirect(
+        new URL(`/admin/login?error=profile_parse_failed&detail=${encodeURIComponent(errorMsg)}`, req.url)
+      );
+    }
+    
     const lineUserId = profile.userId;
     const displayName = profile.displayName;
     const pictureUrl = profile.pictureUrl;
