@@ -52,6 +52,45 @@ The platform is designed with a four-layer Firebase architecture. Currently impl
 
 ## Recent Updates
 
+### 2025-10-25 20:00 - NextAuth.js 認證系統重構（✅ 完成）
+- ✅ **從自訂 LINE OAuth 遷移到 NextAuth.js**：
+  - 原因：自訂實現遇到 LINE API 回應中的控制字元問題，導致 JSON 解析失敗
+  - 解決方案：採用業界標準的 NextAuth.js v4.24.11，使用官方 LINE Provider
+  
+- ✅ **NextAuth 配置完成**：
+  - LINE Provider：使用 OIDC well-known endpoints
+  - Scope：`profile openid email`（支援 OC_EMAIL 權限）
+  - Session 策略：JWT（7 天有效期）
+  - Secret 管理：使用現有的 `SESSION_SECRET`
+  - URL 配置：`.env.local` 設置 `NEXTAUTH_URL=https://go.guimashan.org.tw`
+  
+- ✅ **Firebase 集成**：
+  - signIn callback：自動在 `platform-bc783/users` 建立或更新使用者
+  - 數據同步：displayName、pictureUrl、lastLoginAt
+  - 錯誤處理：Firestore 失敗時安全關閉（fail-closed）
+  
+- ✅ **雙重認證架構保持不變**：
+  - **LIFF (前端)**：`/api/auth/line` + `verifyLineIdToken`（簽到系統使用）
+  - **NextAuth (後端)**：`/api/auth/[...nextauth]`（管理後台使用）
+  - 兩套系統獨立運作，互不干擾
+  
+- ✅ **代碼清理**：
+  - 刪除舊的自訂 OAuth 實現（`/api/auth/line-oauth/`）
+  - 刪除測試端點（`/api/test-line-token/`）
+  - 保留 LIFF 相關代碼（`verifyLineIdToken`）
+  
+- ✅ **安全性審查通過**（Architect）：
+  - 無安全漏洞
+  - 正確使用 Session/JWT
+  - 環境變數管理安全
+  - 生產環境就緒
+  
+- 📋 **後續步驟**：
+  1. 確認 Vercel 已設置 `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`SESSION_SECRET`
+  2. 設置 `NEXTAUTH_URL` 環境變數（已在 .env.local 配置）
+  3. 在 staging 環境測試端到端登入流程
+  4. 監控生產環境日誌
+
 ### 2025-10-25 17:00 - PowerUser 角色完整支援（✅ 完成）
 - ✅ **四層權限系統完成**：
   - **user** - 一般使用者（只能使用 LIFF 簽到）
