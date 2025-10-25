@@ -19,7 +19,11 @@ The platform is designed with a four-layer Firebase architecture. Currently impl
 
 **Technical Implementations:**
 -   **Frontend & Backend**: Next.js 14.2.33 (App Router), React 18, TypeScript.
--   **Authentication**: LINE LIFF SDK 2.22.0, Firebase (client-side), Firebase Admin SDK (server-side).
+-   **Dual Authentication System**:
+    - **LIFF (Front-end)**: LINE LIFF SDK 2.22.0 for in-app check-in interface
+    - **LINE Login OAuth (Back-end)**: Browser-based OAuth flow for admin access
+    - Full ID token verification with JOSE + LINE JWKS
+    - HTTP-only cookies for secure credential transmission
 -   **SuperAdmin Mechanism**: The first registered user automatically becomes a SuperAdmin with full administrative privileges across check-in, schedule, and service systems.
 
 **System Design Choices:**
@@ -28,7 +32,10 @@ The platform is designed with a four-layer Firebase architecture. Currently impl
     - ✅ `checkin-76c77` (Check-in Business Layer): Check-in records, patrol points
     - 📋 `schedule-48ff9` (Schedule Business Layer): Planned - Volunteer schedules, shift management
     - 📋 `service-b9d4a` (神服 Business Layer): Planned - Service applications, inquiries
--   **Login Flow**: For administrators, the initial login is via LINE, followed by password setup for subsequent Email logins.
+-   **Login Flow**: 
+    - **Front-end (LIFF)**: Direct LINE login in LINE app for check-in features
+    - **Back-end (OAuth)**: LINE Login OAuth in browser for admin management
+    - Environment auto-detection routes users to appropriate login method
 -   **Data Separation**: User data resides in the `platform` project, while business-specific data is in respective business layer projects.
 -   **Hybrid Management Interface**: Includes a central administration panel (`/admin`) for SuperAdmins and specific management interfaces (e.g., `/checkin/manage`) for role-based access.
 -   **QR Code System**: Uses QR codes for patrol point check-ins.
@@ -44,6 +51,29 @@ The platform is designed with a four-layer Firebase architecture. Currently impl
 -   **Vercel/Replit**: For deployment and hosting.
 
 ## Recent Updates
+
+### 2025-10-25 12:00 - 雙登入架構改造完成（LIFF + LINE Login OAuth）
+- ✅ **雙登入系統實現**：
+  - 前台（LIFF）：`/checkin` - LINE LIFF SDK，供志工簽到使用
+  - 後台（OAuth）：`/admin/login` - LINE Login OAuth，供管理員使用
+- ✅ **環境自動判斷**：首頁依據 User-Agent 自動分流至 LIFF 或 OAuth
+- ✅ **安全性強化**：
+  - ID Token 完整驗證（使用 JOSE + LINE JWKS 公鑰）
+  - Nonce 防重放攻擊
+  - State 參數 CSRF 防護
+  - HTTP-only Cookie 安全傳遞憑證
+- ✅ **LIFF 簽到介面**：
+  - GPS 定位功能
+  - QR Code 掃描（`liff.scanCodeV2`）
+  - 巡邏點列表顯示
+  - 完整登入流程
+- ✅ **後台管理中心**：
+  - 統一管理首頁（`/admin`）
+  - 角色卡片導航（SuperAdmin、checkin_admin）
+  - OAuth 登入後正確跳轉
+- ✅ **Firebase 服務帳號配置**：正確設定 `PLATFORM_SERVICE_ACCOUNT_JSON`（伺服器端）
+- ✅ **整合測試通過**：所有頁面正常運作（200 OK），OAuth 流程正確（307 redirect）
+- 📋 **準備部署到 Vercel**
 
 ### 2025-10-24 19:30 - 雙層架構完成，準備上傳倉庫
 - ✅ 已實現雙層架構：platform-bc783 (認證) + checkin-76c77 (奉香簽到)
