@@ -35,7 +35,13 @@ yarn-error.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
-
+1.首頁:  
+2.帳號密碼的登入/ line登入：  我選擇後者，line登入（第一次line登入）
+3.首頁
+4.首頁（選擇，奉香簽到管理）
+5.帳號密碼的登錄/ line登入：  我選擇後者，line登入（第二次line登入
+切Line有我的圖像， 按下登入）
+6.首頁（返回首頁）
 # 舊版本文件
 server/
 client/
