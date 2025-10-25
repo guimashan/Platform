@@ -32,49 +32,85 @@ export async function verifyLineIdToken(
   console.log('   ID Token (前50字):', idToken.substring(0, 50) + '...');
   
   try {
-    // Step 1: 解碼 JWT header 獲取 kid 和 alg
+    // Step 1: 解碼 JWT header 獲取算法
     console.log('   ➡️  Step 1: 解碼 JWT Header...');
     const header = decodeProtectedHeader(idToken);
     console.log('   完整 Header:', JSON.stringify(header, null, 2));
     console.log('   Algorithm:', header.alg);
-    console.log('   Key ID:', header.kid);
+    console.log('   Key ID (kid):', header.kid || 'MISSING');
     
-    if (!header.kid) {
-      console.error('   ❌ Header 中沒有 kid！');
-      throw new Error('ID token header missing kid (key ID)');
-    }
-    
-    // Step 2: 從 LINE JWKS 獲取對應的公鑰
+    // Step 2: 從 LINE JWKS 獲取所有公鑰
     console.log('   ➡️  Step 2: 獲取 LINE JWKS...');
     const jwksResponse = await fetch(LINE_JWKS_URL);
     const jwks = await jwksResponse.json() as { keys: any[] };
     console.log(`   找到 ${jwks.keys.length} 個密鑰`);
     
-    // Step 3: 根據 kid 找到對應的 JWK
-    console.log('   ➡️  Step 3: 查找匹配的 JWK...');
-    const jwk = jwks.keys.find(key => key.kid === header.kid);
-    if (!jwk) {
-      throw new Error(`Key with kid ${header.kid} not found in JWKS`);
+    // Step 3: 驗證 JWT 並找到匹配的密鑰
+    let payload: any;
+    let matchedKid: string | undefined;
+    
+    if (header.kid) {
+      // 有 kid：直接查找匹配的密鑰
+      console.log('   ➡️  Step 3a: 使用 kid 查找密鑰...');
+      const jwk = jwks.keys.find(key => key.kid === header.kid);
+      if (!jwk) {
+        throw new Error(`Key with kid ${header.kid} not found in JWKS`);
+      }
+      console.log('   ✅ 找到匹配的密鑰:', jwk.kid);
+      const publicKey = await importJWK(jwk, header.alg as string);
+      matchedKid = jwk.kid;
+      
+      // 驗證 JWT
+      const result = await jwtVerify(idToken, publicKey, {
+        issuer: 'https://access.line.me',
+        audience: expectedAudience,
+      });
+      payload = result.payload;
+    } else {
+      // 沒有 kid：嘗試所有密鑰（LINE 的已知問題）
+      console.log('   ➡️  Step 3b: 沒有 kid，嘗試所有密鑰...');
+      
+      let verificationErrors: string[] = [];
+      let found = false;
+      
+      for (const jwk of jwks.keys) {
+        // 只嘗試匹配算法的密鑰
+        if (jwk.alg && jwk.alg !== header.alg) {
+          continue;
+        }
+        
+        try {
+          console.log(`   🔑 嘗試密鑰: ${jwk.kid?.substring(0, 16)}...`);
+          const testKey = await importJWK(jwk, header.alg as string);
+          
+          // 嘗試驗證
+          const result = await jwtVerify(idToken, testKey, {
+            issuer: 'https://access.line.me',
+            audience: expectedAudience,
+          });
+          
+          // 成功！
+          payload = result.payload;
+          matchedKid = jwk.kid;
+          console.log(`   ✅ 找到有效密鑰: ${jwk.kid}`);
+          found = true;
+          break;
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          verificationErrors.push(`${jwk.kid}: ${errorMsg}`);
+          continue;
+        }
+      }
+      
+      if (!found) {
+        console.error('   ❌ 所有密鑰都失敗了');
+        console.error('   錯誤詳情:', verificationErrors.slice(0, 3));
+        throw new Error('No valid key found in JWKS for this token');
+      }
     }
-    console.log('   ✅ 找到匹配的密鑰:', {
-      kid: jwk.kid,
-      kty: jwk.kty,
-      alg: jwk.alg,
-      use: jwk.use
-    });
     
-    // Step 4: 導入 JWK 為公鑰
-    console.log('   ➡️  Step 4: 導入 JWK...');
-    const publicKey = await importJWK(jwk, header.alg as string);
-    console.log('   ✅ JWK 導入成功');
-    
-    // Step 5: 驗證 JWT 簽名
-    console.log('   ➡️  Step 5: 驗證 JWT 簽名...');
-    const { payload } = await jwtVerify(idToken, publicKey, {
-      issuer: 'https://access.line.me',
-      audience: expectedAudience,
-    });
     console.log('   ✅ JWT 簽名驗證成功');
+    console.log('   使用的密鑰:', matchedKid);
     console.log('   Payload:', JSON.stringify(payload, null, 2));
 
     // 驗證 nonce
