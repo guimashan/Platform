@@ -220,9 +220,17 @@ export async function GET(req: Request) {
 
     return response;
   } catch (error) {
-    console.error("LINE OAuth callback error:", error);
+    console.error("❌ LINE OAuth callback error:", error);
+    console.error("   Error name:", error instanceof Error ? error.name : 'Unknown');
+    console.error("   Error message:", error instanceof Error ? error.message : String(error));
+    console.error("   Error stack:", error instanceof Error ? error.stack : 'No stack');
+    
+    // 將詳細錯誤訊息傳遞給前端（僅用於診斷）
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorDetail = encodeURIComponent(errorMessage.substring(0, 200));
+    
     return NextResponse.redirect(
-      new URL('/admin/login?error=callback_failed', req.url)
+      new URL(`/admin/login?error=callback_failed&detail=${errorDetail}`, req.url)
     );
   }
 }
