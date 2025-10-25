@@ -1,10 +1,7 @@
 // src/lib/verifyLineIdToken.ts
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { jwtVerify, importJWK, decodeProtectedHeader } from "jose";
 
 const LINE_JWKS_URL = 'https://api.line.me/oauth2/v2.1/certs';
-
-// 快取 JWK Set
-const JWKS = createRemoteJWKSet(new URL(LINE_JWKS_URL));
 
 export interface LineIdTokenPayload {
   iss: string;
@@ -35,10 +32,39 @@ export async function verifyLineIdToken(
   console.log('   ID Token (前50字):', idToken.substring(0, 50) + '...');
   
   try {
-    // 使用 LINE 的公鑰驗證 JWT 簽名
-    // JWKS 已經包含算法信息，不需要手動指定
-    console.log('   ➡️  Step 1: 驗證 JWT 簽名...');
-    const { payload } = await jwtVerify(idToken, JWKS, {
+    // Step 1: 解碼 JWT header 獲取 kid 和 alg
+    console.log('   ➡️  Step 1: 解碼 JWT Header...');
+    const header = decodeProtectedHeader(idToken);
+    console.log('   Algorithm:', header.alg);
+    console.log('   Key ID:', header.kid);
+    
+    // Step 2: 從 LINE JWKS 獲取對應的公鑰
+    console.log('   ➡️  Step 2: 獲取 LINE JWKS...');
+    const jwksResponse = await fetch(LINE_JWKS_URL);
+    const jwks = await jwksResponse.json() as { keys: any[] };
+    console.log(`   找到 ${jwks.keys.length} 個密鑰`);
+    
+    // Step 3: 根據 kid 找到對應的 JWK
+    console.log('   ➡️  Step 3: 查找匹配的 JWK...');
+    const jwk = jwks.keys.find(key => key.kid === header.kid);
+    if (!jwk) {
+      throw new Error(`Key with kid ${header.kid} not found in JWKS`);
+    }
+    console.log('   ✅ 找到匹配的密鑰:', {
+      kid: jwk.kid,
+      kty: jwk.kty,
+      alg: jwk.alg,
+      use: jwk.use
+    });
+    
+    // Step 4: 導入 JWK 為公鑰
+    console.log('   ➡️  Step 4: 導入 JWK...');
+    const publicKey = await importJWK(jwk, header.alg as string);
+    console.log('   ✅ JWK 導入成功');
+    
+    // Step 5: 驗證 JWT 簽名
+    console.log('   ➡️  Step 5: 驗證 JWT 簽名...');
+    const { payload } = await jwtVerify(idToken, publicKey, {
       issuer: 'https://access.line.me',
       audience: expectedAudience,
     });
@@ -46,7 +72,7 @@ export async function verifyLineIdToken(
     console.log('   Payload:', JSON.stringify(payload, null, 2));
 
     // 驗證 nonce
-    console.log('   ➡️  Step 2: 驗證 Nonce...');
+    console.log('   ➡️  Step 6: 驗證 Nonce...');
     console.log('   Payload Nonce:', payload.nonce);
     console.log('   Expected Nonce:', expectedNonce);
     
