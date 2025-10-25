@@ -40,6 +40,7 @@ export async function verifyLineIdToken(
     const { payload } = await jwtVerify(idToken, JWKS, {
       issuer: 'https://access.line.me',
       audience: expectedAudience,
+      algorithms: ['RS256'], // LINE 使用 RS256 算法
     });
     console.log('   ✅ JWT 簽名驗證成功');
     console.log('   Payload:', JSON.stringify(payload, null, 2));
