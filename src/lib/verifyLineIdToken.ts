@@ -58,8 +58,8 @@ export async function verifyLineIdToken(
     let payload: LineIdTokenPayload;
     try {
       const responseText = await verifyResponse.text();
-      // 移除控制字符（但保留空格、換行等必要字符）
-      const cleanedText = responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      // 移除 ALL 控制字符，包括換行符（\n, \r）
+      const cleanedText = responseText.replace(/[\x00-\x1F\x7F]/g, '');
       payload = JSON.parse(cleanedText) as LineIdTokenPayload;
     } catch (parseError) {
       console.error('   ❌ JSON 解析失敗:', parseError);

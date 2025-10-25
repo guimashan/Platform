@@ -98,8 +98,9 @@ export async function GET(req: Request) {
     let tokenData: { access_token: string; id_token: string };
     try {
       const responseText = await tokenResponse.text();
-      // 移除控制字符（但保留空格、換行等必要字符）
-      const cleanedText = responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      // 移除 ALL 控制字符，包括換行符（\n, \r）
+      // LINE 的 id_token 可能包含 base64 換行導致 JSON 無效
+      const cleanedText = responseText.replace(/[\x00-\x1F\x7F]/g, '');
       tokenData = JSON.parse(cleanedText);
     } catch (parseError) {
       console.error('❌ Token response JSON 解析失敗:', parseError);
@@ -152,7 +153,7 @@ export async function GET(req: Request) {
     let profile: { userId: string; displayName: string; pictureUrl?: string };
     try {
       const profileText = await profileResponse.text();
-      const cleanedProfileText = profileText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+      const cleanedProfileText = profileText.replace(/[\x00-\x1F\x7F]/g, '');
       profile = JSON.parse(cleanedProfileText);
     } catch (parseError) {
       console.error('❌ Profile JSON 解析失敗:', parseError);
