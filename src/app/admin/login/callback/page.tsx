@@ -28,9 +28,9 @@ export default function AdminLoginCallbackPage() {
         // 使用 Custom Token 登入 Firebase
         await signInWithCustomToken(platformAuth, data.token);
 
-        // 登入成功，導向管理中心
+        // 登入成功，導向統一管理中心
         setTimeout(() => {
-          router.push('/checkin/manage');
+          router.push('/admin');
         }, 1000);
       } catch (err: any) {
         console.error("登入錯誤:", err);
