@@ -2,83 +2,163 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken, getLiffProfile } from "@/lib/liff";
+import { initLiff, isLiffLoggedIn, liffLogin, getLiffIdToken, getLiffProfile, getDecodedIdToken } from "@/lib/liff";
 import { authClient } from "@/lib/firebase";
 import { signInWithCustomToken } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { QrCode, Clock, User } from "lucide-react";
+import { QrCode, Clock, User, MapPin, Scan } from "lucide-react";
+import { apiRequest } from "@/lib/apiRequest";
+import type { LineAuthResponse } from "@/shared/schema";
+
+interface PatrolPoint {
+  id: string;
+  name: string;
+  qrCode: string;
+  enabled: boolean;
+}
 
 export default function CheckinPage() {
   const router = useRouter();
   const [liffReady, setLiffReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-  const [idToken, setIdToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const [qrInput, setQrInput] = useState("");
   const [checkinStatus, setCheckinStatus] = useState<"idle" | "loading">("idle");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [patrolPoints, setPatrolPoints] = useState<PatrolPoint[]>([]);
 
-  // 初始化 LIFF
+  // 初始化 LIFF 並登入
   useEffect(() => {
-    const setupLiff = async () => {
-      try {
-        await initLiff();
-        setLiffReady(true);
-        
-        if (isLiffLoggedIn()) {
-          setLoggedIn(true);
-          const userProfile = await getLiffProfile();
-          const lineIdToken = await getLiffIdToken();
-          
-          setProfile(userProfile);
-          
-          // 使用 LINE ID Token 登入 Firebase 並獲取 Firebase ID Token
-          if (lineIdToken) {
-            await authenticateWithFirebase(lineIdToken);
-          }
-        }
-      } catch (error) {
-        console.error("LIFF 初始化失敗:", error);
-      }
-    };
-
-    setupLiff();
+    handleLiffInit();
   }, []);
 
-  // 使用 LINE ID Token 登入 Firebase
-  const authenticateWithFirebase = async (lineIdToken: string) => {
+  const handleLiffInit = async () => {
     try {
-      const response = await fetch("/api/auth/line", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: lineIdToken }),
-      });
+      setLoading(true);
+      await initLiff();
+      setLiffReady(true);
 
-      if (!response.ok) {
-        throw new Error("Firebase 認證失敗");
+      if (!isLiffLoggedIn()) {
+        liffLogin();
+        return;
       }
 
-      const { customToken } = await response.json();
-      const userCredential = await signInWithCustomToken(authClient, customToken);
-      
-      // 🔑 關鍵修正：獲取 Firebase ID Token（而非 LINE LIFF Token）
-      const firebaseIdToken = await userCredential.user.getIdToken();
-      setIdToken(firebaseIdToken);
-      
-      return firebaseIdToken;
-    } catch (error) {
-      console.error("Firebase 認證錯誤:", error);
-      throw error;
+      // 取得 LINE Profile
+      const userProfile = await getLiffProfile();
+      if (!userProfile) {
+        throw new Error("無法取得使用者資料");
+      }
+
+      // 取得 ID Token
+      const lineIdToken = await getLiffIdToken();
+      if (!lineIdToken) {
+        throw new Error("無法取得登入憑證");
+      }
+
+      // 取得 email
+      const decodedToken = getDecodedIdToken();
+      const email = decodedToken?.email;
+
+      if (!email) {
+        setError("您的 LINE 帳號未設定 Email，請聯絡管理員");
+        setLoading(false);
+        return;
+      }
+
+      // 登入 Firebase
+      const response = await apiRequest<LineAuthResponse>("POST", "/api/auth/line", {
+        idToken: lineIdToken,
+        email: email,
+        displayName: userProfile.displayName,
+        pictureUrl: userProfile.pictureUrl,
+      });
+
+      if (!response.ok || !response.customToken) {
+        throw new Error(response.error || "認證失敗");
+      }
+
+      await signInWithCustomToken(authClient, response.customToken);
+
+      setProfile(userProfile);
+      setLoggedIn(true);
+
+      // 載入巡邏點列表
+      await loadPatrolPoints();
+
+      // 請求 GPS 權限
+      requestLocationPermission();
+    } catch (err: any) {
+      console.error("初始化錯誤:", err);
+      setError(err?.message || "初始化失敗");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // 載入巡邏點列表
+  const loadPatrolPoints = async () => {
+    try {
+      const response = await fetch("/api/checkin/points");
+      if (response.ok) {
+        const data = await response.json();
+        setPatrolPoints(data.points || []);
+      }
+    } catch (err) {
+      console.error("載入巡邏點失敗:", err);
+    }
+  };
 
-  // 獲取 GPS 位置（Promise 版本）
-  const requestLocation = (): Promise<{ lat: number; lng: number }> => {
+  // 請求位置權限
+  const requestLocationPermission = () => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => {
+        console.error("GPS 錯誤:", error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  // 掃描 QR Code
+  const handleScanQR = async () => {
+    try {
+      // 使用 LIFF SDK 的 scanCodeV2
+      const liff = (window as any).liff;
+      if (!liff || !liff.scanCodeV2) {
+        alert("QR Code 掃描功能只能在 LINE App 中使用");
+        return;
+      }
+
+      const result = await liff.scanCodeV2();
+      if (result && result.value) {
+        setQrInput(result.value);
+      }
+    } catch (err: any) {
+      console.error("掃描失敗:", err);
+      if (err.code !== 'CANCEL') {
+        alert("掃描失敗，請手動輸入或重試");
+      }
+    }
+  };
+
+  // 獲取 GPS 位置
+  const getCurrentLocation = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error("您的裝置不支援 GPS 定位"));
@@ -92,14 +172,10 @@ export default function CheckinPage() {
             lng: position.coords.longitude,
           };
           setUserLocation(location);
-          setGpsError(null);
           resolve(location);
         },
         (error) => {
-          console.error("GPS 錯誤:", error);
-          const errorMsg = `GPS 定位失敗: ${error.message}`;
-          setGpsError(errorMsg);
-          reject(new Error(errorMsg));
+          reject(new Error(`GPS 定位失敗: ${error.message}`));
         },
         {
           enableHighAccuracy: true,
@@ -113,33 +189,32 @@ export default function CheckinPage() {
   // 處理簽到
   const handleCheckin = async () => {
     if (!qrInput.trim()) {
-      alert("請輸入 QR Code");
+      alert("請輸入或掃描 QR Code");
       return;
     }
 
     setCheckinStatus("loading");
 
-    // 🔑 關鍵修正：等待 GPS 獲取完成
-    let locationData = userLocation;
-    if (!locationData && navigator.geolocation) {
-      try {
-        locationData = await requestLocation();
-      } catch (error: any) {
-        console.error("GPS 獲取失敗:", error);
-        // 繼續簽到（讓後端決定是否需要 GPS）
-      }
-    }
-
     try {
-      // 🔑 獲取最新的 Firebase ID Token（處理過期情況）
+      // 獲取 GPS 位置
+      let locationData = userLocation;
+      if (!locationData) {
+        try {
+          locationData = await getCurrentLocation();
+        } catch (error: any) {
+          console.error("GPS 獲取失敗:", error);
+        }
+      }
+
+      // 獲取 Firebase ID Token
       const currentUser = authClient.currentUser;
       if (!currentUser) {
         router.push("/checkin/fail?error=請重新登入");
         return;
       }
-      
+
       const freshIdToken = await currentUser.getIdToken(true);
-      
+
       const response = await fetch("/api/checkin/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -154,14 +229,12 @@ export default function CheckinPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ 成功：跳轉到成功頁面
         const params = new URLSearchParams({
           patrol: data.checkin.patrolName,
           ts: data.checkin.timestamp.toString(),
         });
         router.push(`/checkin/success?${params.toString()}`);
       } else {
-        // ❌ 失敗：跳轉到失敗頁面
         const params = new URLSearchParams({
           error: data.error || "簽到失敗",
         });
@@ -169,21 +242,14 @@ export default function CheckinPage() {
       }
     } catch (error) {
       console.error("簽到錯誤:", error);
-      router.push("/checkin/fail?error=網路錯誤，請稍後再試");
+      router.push("/checkin/fail?error=網路錯誤");
     } finally {
       setCheckinStatus("idle");
     }
   };
 
-  // 處理 LINE 登入
-  const handleLogin = () => {
-    if (liffReady) {
-      liffLogin();
-    }
-  };
-
-  // LIFF 尚未準備好
-  if (!liffReady) {
+  // Loading 狀態
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50">
         <div className="text-center">
@@ -194,26 +260,21 @@ export default function CheckinPage() {
     );
   }
 
-  // 未登入狀態
-  if (!loggedIn) {
+  // 錯誤狀態
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-50 to-orange-50 px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">龜馬山奉香簽到系統</CardTitle>
-            <CardDescription>請使用 LINE 帳號登入</CardDescription>
+            <CardTitle className="text-red-600">發生錯誤</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
-              <QrCode className="w-10 h-10 text-orange-600" />
-            </div>
+          <CardContent className="space-y-4">
+            <p className="text-center text-gray-700">{error}</p>
             <Button
-              onClick={handleLogin}
-              className="w-full bg-green-500 hover:bg-green-600 text-white"
-              size="lg"
-              data-testid="button-line-login"
+              onClick={() => window.location.reload()}
+              className="w-full"
             >
-              使用 LINE 登入
+              重新載入
             </Button>
           </CardContent>
         </Card>
@@ -221,7 +282,7 @@ export default function CheckinPage() {
     );
   }
 
-  // 已登入狀態 - 主介面
+  // 已登入 - 主介面
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-orange-50">
       {/* Header */}
@@ -245,7 +306,7 @@ export default function CheckinPage() {
               <p className="font-medium text-sm" data-testid="text-display-name">
                 {profile?.displayName || "使用者"}
               </p>
-              <p className="text-xs text-gray-500">龜馬山奉香簽到</p>
+              <p className="text-xs text-gray-500">奉香簽到</p>
             </div>
           </div>
         </div>
@@ -257,23 +318,35 @@ export default function CheckinPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <QrCode className="w-5 h-5 text-orange-600" />
-              掃描 QR Code 簽到
+              QR Code 簽到
             </CardTitle>
-            <CardDescription>請掃描巡邏點的 QR Code 或手動輸入</CardDescription>
+            <CardDescription>掃描或手動輸入巡邏點 QR Code</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input
-              value={qrInput}
-              onChange={(e) => setQrInput(e.target.value)}
-              placeholder="輸入 QR Code（例如：PATROL_YUJI_2025）"
-              disabled={checkinStatus === "loading"}
-              data-testid="input-qr-code"
-            />
-            
+            <div className="flex gap-2">
+              <Input
+                value={qrInput}
+                onChange={(e) => setQrInput(e.target.value)}
+                placeholder="輸入 QR Code"
+                disabled={checkinStatus === "loading"}
+                data-testid="input-qr-code"
+                className="flex-1"
+              />
+              <Button
+                onClick={handleScanQR}
+                variant="outline"
+                size="icon"
+                disabled={checkinStatus === "loading"}
+                data-testid="button-scan-qr"
+                className="shrink-0"
+              >
+                <Scan className="w-5 h-5" />
+              </Button>
+            </div>
+
             <Button
               onClick={handleCheckin}
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              size="lg"
+              className="w-full bg-orange-600 hover:bg-orange-700 h-12"
               disabled={checkinStatus === "loading" || !qrInput.trim()}
               data-testid="button-checkin"
             >
@@ -292,17 +365,45 @@ export default function CheckinPage() {
           </CardContent>
         </Card>
 
-        {/* 快速參考 */}
-        <Card className="bg-amber-50 border-amber-200">
-          <CardContent className="pt-6">
-            <p className="text-sm text-amber-900 font-medium mb-2">📍 巡邏點 QR Code 參考：</p>
-            <ul className="text-xs text-amber-800 space-y-1">
-              <li>• 玉旨牌：PATROL_YUJI_2025</li>
-              <li>• 萬應公：PATROL_WANYING_2025</li>
-              <li>• 辦公室：PATROL_OFFICE_2025</li>
-            </ul>
-          </CardContent>
-        </Card>
+        {/* 巡邏點列表 */}
+        {patrolPoints.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="w-4 h-4 text-orange-600" />
+                巡邏點列表
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {patrolPoints
+                  .filter(p => p.enabled)
+                  .map((point) => (
+                    <button
+                      key={point.id}
+                      onClick={() => setQrInput(point.qrCode)}
+                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-orange-50 hover:border-orange-300 transition-colors"
+                      data-testid={`button-patrol-${point.id}`}
+                    >
+                      <p className="font-medium text-sm">{point.name}</p>
+                      <p className="text-xs text-gray-500">{point.qrCode}</p>
+                    </button>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* GPS 狀態 */}
+        {userLocation && (
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="pt-4">
+              <p className="text-xs text-green-800">
+                ✅ GPS 定位成功 ({userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)})
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );
